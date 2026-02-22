@@ -1,0 +1,28 @@
+# Build
+/target
+**/target
+*.exe
+
+# User config (paths)
+acr_recorder.toml
+
+# Recordings & user data
+/telemetry_raw/
+telemetry.db
+telemetry.db.bak
+*.rkyv
+acc_physics_*.csv
+acc_physics_*.json
+acc_physics_*.ld
+acc_physics_*.noquote.csv
+
+# Archives
+*.zip
+
+# Binary distribution (optional)
+acr_telemetry_0.1-bin/
+acr-bin/
+
+# Local archives
+/archive/
+/v0.1/
