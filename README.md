@@ -37,7 +37,7 @@ Telemetry recording and analysis for **Assetto Corsa Competizione (ACC)** and **
 
 ## License
 
-MIT
+PolyForm Noncommercial License 1.0.0
 =======
 # acr_telemetry
 Telemetry tools for Assetto Corsa Rally
