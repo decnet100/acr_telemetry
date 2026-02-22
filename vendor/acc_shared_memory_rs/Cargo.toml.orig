@@ -1,0 +1,27 @@
+[package]
+name = "acc_shared_memory_rs"
+version = "0.8.0"
+edition = "2021"
+description = "Rust library for reading Assetto Corsa Competizione shared memory"
+authors = ["Naresh Kumar"]
+license = "MIT OR Apache-2.0"
+keywords = ["acc", "assetto-corsa", "racing", "telemetry", "shared-memory"]
+categories = ["game-development", "api-bindings"]
+repository = "https://gitlab.com/ai-projects219/race-engineer/acc-shared-memory-rust"
+documentation = "https://gitlab.com/ai-projects219/race-engineer/acc-shared-memory-rust/-/blob/main/README.md"
+homepage = "https://gitlab.com/ai-projects219/race-engineer/acc-shared-memory-rust"
+readme = "README.md"
+
+[dependencies]
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"], optional = true }
+
+[dev-dependencies]
+ctrlc = "3.4"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winnt", "memoryapi", "handleapi", "errhandlingapi", "synchapi", "winerror"] }
+
+[features]
+default = []
+serde = ["dep:serde"]
