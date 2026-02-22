@@ -23,11 +23,14 @@ Web dashboard for monitoring ACC/AC Rally temperatures and telemetry on a second
    ```
    Example: `http://192.168.1.42:8080`
 
+
 3. The dashboard auto-refreshes and shows configurable fields (speed, temps, fuel, etc.).
 
 ## Configuration
 
 `acr_telemetry_bridge.toml`:
+
+Full field list: see **[FIELDS.md](FIELDS.md)**.
 
 ```toml
 rate_hz = 5
@@ -51,3 +54,8 @@ Threshold-based coloring. Place next to the executable or in `~/.config/acr_reco
 | `--http [ADDR]` | Serve HTTP dashboard |
 | `--udp HOST:PORT` | Send JSON over UDP |
 | `--unit c\|f\|k` | Temperature unit |
+
+
+### Possible problems:
+
+If that port 8080 is taken (it's not exactly super original), the executable will give you an error. Then you can just pick another number, preferably larger than 1000 (i.e. 8081, 8082...). Use this port also when connecting your phone.
