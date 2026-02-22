@@ -1,4 +1,4 @@
-# ACR Bridge – Live Telemetry Dashboard
+# ACR Telemetry Bridge – Live Telemetry Dashboard
 
 Web dashboard for monitoring ACC/AC Rally temperatures and telemetry on a second device (phone, tablet, laptop).
 
@@ -13,7 +13,9 @@ Web dashboard for monitoring ACC/AC Rally temperatures and telemetry on a second
    ```bash
    acr_telemetry_bridge --http 0.0.0.0:8080 --rate 5
    ```
-   Config: `acr_telemetry_bridge.toml` next to the executable (or CWD, or `~/.config/acr_recorder/`).
+   Meaning: start the bridge as a http server on all ips, at port 8080, with an update rate of 5 per second. 
+   
+   You can use the Configfile to save these parameters: `acr_telemetry_bridge.toml` next to the executable (or CWD, or `~/.config/acr_recorder/`).
 
 2. **On phone or second device**, open in browser:
    ```
