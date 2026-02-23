@@ -8,33 +8,34 @@ The `/config` API also returns this list as `available_fields`.
 
 ## Global Fields
 
+Fields which are known to be filled with useful data in AC Rally 0.2 are marked with *. Dubious fields are labelled *?
+
 | Field | Description |
 |-------|-------------|
-| `packet_id` | Packet ID (increments per update) |
-| `temperature_unit` | `c`, `f`, or `k` |
-| `gas` | Throttle pedal (0–1) |
-| `brake` | Brake pedal (0–1) |
-| `clutch` | Clutch pedal (0–1) |
-| `steer_angle` | Steering angle (°) |
-| `gear` | Gear (0=neutral, 1–7) |
-| `rpm` | Engine RPM |
+| `packet_id` | *Packet ID (increments per update) |
+| `gas` | *Throttle pedal (0–1) |
+| `brake` | *Brake pedal (0–1) |
+| `clutch` | *Clutch pedal (0–1) |
+| `steer_angle` | *Steering angle (°) |
+| `gear` | *Gear (0=neutral, 1–7) |
+| `rpm` | *Engine RPM |
 | `autoshifter_on` | Autoshifter enabled |
-| `ignition_on` | Ignition on |
+| `ignition_on` | *Ignition on |
 | `starter_engine_on` | Starter engaged |
 | `is_engine_running` | Engine running |
-| `speed_kmh` | Speed (km/h) |
-| `velocity_x`, `velocity_y`, `velocity_z` | Velocity vector (world) |
+| `speed_kmh` | *Speed (km/h) |
+| `velocity_x`, `velocity_y`, `velocity_z` | *Velocity vector (world) |
 | `local_velocity_x/y/z` | Velocity vector (local) |
 | `g_force_x`, `g_force_y`, `g_force_z` | G-forces |
-| `heading`, `pitch`, `roll` | Orientation (rad) |
+| `heading`, `pitch`, `roll` | *Orientation (rad) |
 | `final_ff` | Force feedback |
 | `fuel` | Fuel (L) |
-| `water_temp` | Water/coolant temperature |
-| `road_temp` | Track surface temperature |
-| `air_temp` | Air temperature |
-| `tc` | Traction control (level) |
-| `abs` | ABS (level) |
-| `brake_bias` | Brake bias (front) |
+| `water_temp` | *Water/coolant temperature |
+| `road_temp` | * Track surface temperature (? always 304K/30.9°C)|
+| `air_temp` | *Air temperature |
+| `tc` | *Traction control (on/off) |
+| `abs` | *ABS (level - 1, 0,-1) |
+| `brake_bias` | *?Brake bias (front) - always at 0.5 right now |
 | `turbo_boost` | Turbo boost (bar) |
 | `pit_limiter_on` | Pit limiter active |
 | `tc_in_action` | TC engaging |
@@ -55,7 +56,7 @@ The `/config` API also returns this list as `available_fields`.
 | `drs_available`, `drs_enabled` | DRS available/active |
 | `p2p_activation`, `p2p_status` | Push-to-Pass |
 | `front_brake_compound`, `rear_brake_compound` | Brake compound index |
-| `kerb_vibration`, `slip_vibration`, `g_vibration`, `abs_vibration` | Vibrations |
+| `kerb_vibration`, `slip_vibration`, `g_vibration`, `abs_vibration` | *Vibrations |
 
 ---
 
@@ -63,23 +64,23 @@ The `/config` API also returns this list as `available_fields`.
 
 | Base | Description |
 |------|-------------|
-| `wheel_slip` | Wheel slip |
-| `wheel_load` | Wheel load |
-| `wheel_pressure` | Tyre pressure (psi) |
-| `wheel_angular_speed` | Angular speed (rad/s) |
-| `tyre_core_temp` | Tyre core temperature |
-| `brake_temp` | Brake temperature |
+| `wheel_slip` | *Wheel slip |
+| `wheel_load` | *Wheel load |
+| `wheel_pressure` | *Tyre pressure (psi) |
+| `wheel_angular_speed` | *Angular speed (rad/s) |
+| `tyre_core_temp` | *Tyre core temperature |
+| `brake_temp` | *Brake temperature |
 | `tyre_wear` | Tyre wear |
 | `tyre_dirty_level` | Tyre dirt level |
 | `camber_rad` | Camber (rad) |
-| `suspension_travel` | Suspension travel (mm) |
+| `suspension_travel` | *Suspension travel (mm) |
 | `brake_pressure` | Brake pressure (bar) |
 | `slip_ratio` | Slip ratio |
 | `slip_angle` | Slip angle (°) |
 | `pad_life` | Pad life (%) |
 | `disc_life` | Disc life (%) |
 | `tyre_temp_i`, `tyre_temp_m`, `tyre_temp_o` | Tyre temp inner/middle/outer |
-| `mz`, `fz`, `my` | Tyre moments/forces |
+| `mz`, `fz`, `my` | *Tyre moments/forces |
 | `suspension_damage` | Suspension damage |
 
 Examples: `tyre_core_temp_fl`, `brake_temp_rr`, `slip_angle_fr`, etc.
