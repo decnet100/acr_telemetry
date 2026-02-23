@@ -28,10 +28,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cfg = config::load_config();
     let output_path = output_path(&cfg)?;
-    let stop_path = config::resolve_stop_file_path(&cfg.recorder);
+    let mut stop_path = config::resolve_stop_file_path(&cfg.recorder);
+    if stop_path.is_relative() {
+        if let Ok(cwd) = std::env::current_dir() {
+            stop_path = cwd.join(stop_path);
+        }
+    }
     if stop_path.exists() {
         let _ = std::fs::remove_file(&stop_path);
     }
+    config::write_stop_location_file(&stop_path);
     eprintln!("Recording to: {}", output_path.display());
     eprintln!("Ctrl+C to stop, or run acr_stop.bat / create {} to stop from game.", stop_path.display());
 
