@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # ACR – Assetto Corsa Recorder & Grafana Telemetry
 
 Telemetry recording and analysis for **Assetto Corsa Competizione (ACC)** and **Assetto Corsa Rally**. Records physics data at ~333 Hz and exports to CSV, MoTeC LD (not working yet!! help needed by someone who knows that data format), or SQLite for Grafana dashboards.
@@ -41,4 +40,4 @@ PolyForm Noncommercial License 1.0.0
 =======
 # acr_telemetry
 Telemetry tools for Assetto Corsa Rally
->>>>>>> 11a5de1821db85e00d43194a0269da7aa264382d
+
