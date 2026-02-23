@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ACR Telemetry</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui,sans-serif; background: #0d0d0d; color: #e6e6e6; margin: 0; padding: 1rem; }
+    h1 { font-size: 1.25rem; margin: 0 0 1rem; color: #aaa; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+    .card { background: #1a1a1a; border-radius: 8px; padding: 1rem; text-align: center; }
+    .card .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+    .card .value { font-size: 1.5rem; font-weight: 600; margin-top: 0.25rem; }
+    .status { font-size: 0.75rem; color: #555; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>ACR Telemetry</h1>
+  <div id="slots" class="grid"></div>
+  <div class="status" id="status">Loading config...</div>
+  <script>
+    const POLL_MS = 200;
+    const FIELDS = {
+      water_temp: { label: "Water", fmt: v => v.toFixed(1), temp: true },
+      road_temp: { label: "Road", fmt: v => v.toFixed(1), temp: true },
+      air_temp: { label: "Air", fmt: v => v.toFixed(1), temp: true },
+      fuel: { label: "Fuel L", fmt: v => v.toFixed(1), temp: false },
+      tyre_fl: { label: "Tyre FL", fmt: v => v.toFixed(0), temp: true },
+      tyre_fr: { label: "Tyre FR", fmt: v => v.toFixed(0), temp: true },
+      tyre_rl: { label: "Tyre RL", fmt: v => v.toFixed(0), temp: true },
+      tyre_rr: { label: "Tyre RR", fmt: v => v.toFixed(0), temp: true },
+      brake_fl: { label: "Brake FL", fmt: v => v.toFixed(0), temp: true },
+      brake_fr: { label: "Brake FR", fmt: v => v.toFixed(0), temp: true },
+      brake_rl: { label: "Brake RL", fmt: v => v.toFixed(0), temp: true },
+      brake_rr: { label: "Brake RR", fmt: v => v.toFixed(0), temp: true },
+      speed_kmh: { label: "Speed km/h", fmt: v => v.toFixed(0), temp: false },
+      gear: { label: "Gear", fmt: v => v, temp: false },
+      rpm: { label: "RPM", fmt: v => v, temp: false },
+    };
+    function getValue(d, field) { return d != null && field in d ? d[field] : undefined; }
+    function formatValue(val, def) {
+      if (val == null || (typeof val === 'number' && !Number.isFinite(val))) return '-';
+      if (def && def.fmt) return def.fmt(val);
+      if (typeof val === 'number') return Number.isInteger(val) ? String(val) : val.toFixed(2);
+      return String(val);
+    }
+    let tempUnit = 'c';
+    let slots = [];
+    let colorConfig = { colors: null, fields: {} };
+    let wakeLock = null;
+    async function acquireWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => { wakeLock = null; });
+        } catch (e) {}
+      }
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') acquireWakeLock();
+      else if (wakeLock) wakeLock.release();
+    });
+    acquireWakeLock();
+    function levelForValue(field, v) {
+      if (v == null || !Number.isFinite(v)) return 'ignore';
+      const t = colorConfig.fields[field];
+      if (!t) return 'ignore';
+      const order = ['very_high', 'high', 'normal', 'low', 'very_low'];
+      for (const lev of order) {
+        const th = t[lev];
+        if (th != null && v >= th) return lev;
+      }
+      return 'ignore';
+    }
+    function colorForLevel(level) {
+      return colorConfig.colors?.[level] || '#e6e6e6';
+    }
+    function unitLabel() {
+      if (tempUnit === 'f') return '°F';
+      if (tempUnit === 'k') return 'K';
+      return '°C';
+    }
+    function renderSlots(slotConfigs) {
+      const grid = document.getElementById('slots');
+      grid.innerHTML = '';
+      slotConfigs.forEach((s, i) => {
+        const def = FIELDS[s.field] || { label: s.field, fmt: v => v, temp: false };
+        const label = s.label || def.label;
+        const suffix = def.temp ? ' <span class="temp-unit">' + unitLabel() + '</span>' : '';
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = 'slot_' + i;
+        card.dataset.field = s.field;
+        card.innerHTML = '<div class="label">' + label + suffix + '</div><div class="value">-</div>';
+        grid.appendChild(card);
+      });
+    }
+    function updateValues(d) {
+      slots.forEach((s, i) => {
+        const card = document.getElementById('slot_' + i);
+        if (!card) return;
+        const val = getValue(d, s.field);
+        const def = FIELDS[s.field];
+        const valEl = card.querySelector('.value');
+        valEl.textContent = formatValue(val, def);
+        const numVal = typeof val === 'number' ? val : (val != null ? parseFloat(val) : NaN);
+        const level = levelForValue(s.field, Number.isFinite(numVal) ? numVal : null);
+        valEl.style.color = colorForLevel(level);
+      });
+    }
+    async function loadConfig() {
+      try {
+        const r = await fetch('/config');
+        if (!r.ok) throw new Error(r.status);
+        const cfg = await r.json();
+        tempUnit = (cfg.temperature_unit || 'c').toLowerCase();
+        slots = cfg.slots || [];
+        if (slots.length === 0) {
+          slots = (cfg.available_fields || Object.keys(FIELDS)).slice(0, 16).map(f => ({ field: f }));
+        }
+        colorConfig = {
+          colors: cfg.colors || { very_low:'#1e3a5f', low:'#7dd3fc', normal:'#fde047', high:'#fb923c', very_high:'#ef4444', ignore:'#ffffff' },
+          fields: cfg.fields || {}
+        };
+        document.querySelectorAll('.temp-unit').forEach(el => { el.textContent = unitLabel(); });
+        renderSlots(slots);
+        return true;
+      } catch (e) {
+        document.getElementById('status').textContent = 'Config failed - using defaults';
+        slots = Object.keys(FIELDS).map(f => ({ field: f }));
+        renderSlots(slots);
+        return true;
+      }
+    }
+    async function fetchData() {
+      try {
+        const r = await fetch('/data');
+        if (!r.ok) throw new Error(r.status);
+        const d = await r.json();
+        if (d.temperature_unit && d.temperature_unit !== tempUnit) {
+          tempUnit = d.temperature_unit.toLowerCase();
+          document.querySelectorAll('.temp-unit').forEach(el => { el.textContent = unitLabel(); });
+        }
+        document.getElementById('status').textContent = d ? ('Connected - packet ' + (d.packet_id ?? '-')) : 'No data';
+        updateValues(d || {});
+      } catch (e) {
+        document.getElementById('status').textContent = 'Disconnected - retrying...';
+      }
+    }
+    (async () => {
+      await loadConfig();
+      setInterval(fetchData, POLL_MS);
+      fetchData();
+    })();
+  </script>
+</body>
+</html>
