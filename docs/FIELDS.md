@@ -8,7 +8,7 @@ The `/config` API also returns this list as `available_fields`.
 
 ## Global Fields
 
-Fields which are known to be filled with useful data in AC Rally 0.2 are marked with *. Dubious fields are labelled *?
+Fields which are known to be filled with useful data in AC Rally 0.2 are marked with *. Dubious fields are labelled *?, reason for doubt given after name and description.
 
 | Field | Description |
 |-------|-------------|
@@ -29,9 +29,9 @@ Fields which are known to be filled with useful data in AC Rally 0.2 are marked 
 | `g_force_x`, `g_force_y`, `g_force_z` | G-forces |
 | `heading`, `pitch`, `roll` | *Orientation (rad) |
 | `final_ff` | Force feedback |
-| `fuel` | Fuel (L) |
+| `fuel` | *?Fuel (L) -always at starting amount |
 | `water_temp` | *Water/coolant temperature |
-| `road_temp` | * Track surface temperature (? always 304K/30.9°C)|
+| `road_temp` | * Track surface temperature - always at 304K/30.9°C)|
 | `air_temp` | *Air temperature |
 | `tc` | *Traction control (on/off) |
 | `abs` | *ABS (level - 1, 0,-1) |
