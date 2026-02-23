@@ -1,0 +1,1733 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 13,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "queryText": "SELECT id as recording_id, s.car_model, source_file, duration_secs, sample_count from recordings join statics s on recordings.id = s.recording_id",
+          "queryType": "table",
+          "rawQueryText": "SELECT id as recording_id, s.car_model, source_file, duration_secs, sample_count from recordings join statics s on recordings.id = s.recording_id",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Recordings overview",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*rpm/"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    0,
+                    3,
+                    3
+                  ],
+                  "fill": "dot"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*gear/"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "hidden"
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    10,
+                    10
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, rpm, speed_kmh, gear-1 AS gear, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, rpm, speed_kmh, gear FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, rpm, speed_kmh, gear-1 AS gear, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, rpm, speed_kmh, gear FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        },
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "cfdu1ntk22cxsa"
+          },
+          "hide": false,
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0) ) AS time, rpm, speed_kmh, gear-1 AS gear, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, rpm as rpm_b, speed_kmh as speed_kmh_b, gear as gear_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0) ) AS time, rpm, speed_kmh, gear-1 AS gear, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, rpm as rpm_b, speed_kmh as speed_kmh_b, gear as gear_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "B",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Speed + RPM",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-YlRd",
+            "seriesBy": "last"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": true,
+            "axisColorMode": "series",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 2,
+            "axisSoftMin": -2,
+            "fillOpacity": 50,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "pointShape": "circle",
+            "pointSize": {
+              "fixed": 5
+            },
+            "pointStrokeWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "show": "points"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "g_force_x"
+            },
+            "properties": [
+              {
+                "id": "custom.axisSoftMin",
+                "value": -2
+              },
+              {
+                "id": "custom.axisSoftMax",
+                "value": 2
+              },
+              {
+                "id": "custom.axisCenteredZero",
+                "value": true
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 5,
+        "x": 0,
+        "y": 8
+      },
+      "id": 12,
+      "options": {
+        "dims": {
+          "exclude": [
+            "speed_kmh"
+          ]
+        },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "mapping": "manual",
+        "series": [
+          {
+            "color": {
+              "matcher": {
+                "id": "byName",
+                "options": "speed_kmh"
+              }
+            },
+            "frame": {
+              "matcher": {
+                "id": "byIndex",
+                "options": 0
+              }
+            },
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "g_force_x"
+              }
+            },
+            "y": {
+              "matcher": {
+                "id": "byName",
+                "options": "g_force_z"
+              }
+            }
+          }
+        ],
+        "seriesMapping": "auto",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "cfdu1ntk22cxsa"
+          },
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, g_force_x, g_force_z, speed_kmh, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND abs(g_force_x) < 2 AND abs(g_force_z) < 2 AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, g_force_x, g_force_z, speed_kmh FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, g_force_x, g_force_z, speed_kmh, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND abs(g_force_x) < 2 AND abs(g_force_z) < 2 AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, g_force_x, g_force_z, speed_kmh FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "A",
+          "timeColumns": ["time", "ts"]
+        },
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "cfdu1ntk22cxsa"},
+          "hide": false,
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, g_force_x, g_force_z, speed_kmh, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND abs(g_force_x) < 2 AND abs(g_force_z) < 2 AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, g_force_x, g_force_z, speed_kmh FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, g_force_x, g_force_z, speed_kmh, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND abs(g_force_x) < 2 AND abs(g_force_z) < 2 AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, g_force_x, g_force_z, speed_kmh FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "B",
+          "timeColumns": ["time", "ts"]
+        }
+      ],
+      "title": "G-Scope",
+      "type": "xychart"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlYlRd"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "max": 200,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "velocitykmh"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 7,
+        "x": 5,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "basemap": {
+          "config": {},
+          "name": "Layer 0",
+          "noRepeat": false,
+          "opacity": 0,
+          "type": "osm-standard"
+        },
+        "controls": {
+          "mouseWheelZoom": true,
+          "showAttribution": true,
+          "showDebug": false,
+          "showMeasure": false,
+          "showScale": false,
+          "showZoom": true
+        },
+        "layers": [
+          {
+            "config": {
+              "showLegend": true,
+              "style": {
+                "color": {
+                  "field": "speed_kmh",
+                  "fixed": "dark-green"
+                },
+                "opacity": 0.4,
+                "rotation": {
+                  "field": "heading",
+                  "fixed": 0,
+                  "max": 360,
+                  "min": -360,
+                  "mode": "mod"
+                },
+                "size": {
+                  "fixed": 10,
+                  "max": 15,
+                  "min": 2
+                },
+                "symbol": {
+                  "fixed": "img/icons/unicons/arrow-right.svg",
+                  "mode": "fixed"
+                },
+                "symbolAlign": {
+                  "horizontal": "center",
+                  "vertical": "center"
+                },
+                "textConfig": {
+                  "fontSize": 12,
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "textAlign": "center",
+                  "textBaseline": "middle"
+                }
+              }
+            },
+            "filterData": {
+              "id": "byRefId",
+              "options": "A"
+            },
+            "layer-tooltip": true,
+            "location": {
+              "latitude": "car_pos_x",
+              "longitude": "car_pos_z",
+              "mode": "coords"
+            },
+            "name": "recording_a",
+            "tooltip": true,
+            "type": "markers"
+          },
+          {
+            "config": {
+              "showLegend": true,
+              "style": {
+                "color": {
+                  "field": "b_speed_kmh",
+                  "fixed": "dark-green"
+                },
+                "opacity": 0.4,
+                "rotation": {
+                  "field": "heading_b",
+                  "fixed": 0,
+                  "max": 360,
+                  "min": -360,
+                  "mode": "mod"
+                },
+                "size": {
+                  "fixed": 5,
+                  "max": 15,
+                  "min": 2
+                },
+                "symbol": {
+                  "fixed": "img/icons/unicons/angle-right.svg",
+                  "mode": "fixed"
+                },
+                "symbolAlign": {
+                  "horizontal": "center",
+                  "vertical": "center"
+                },
+                "textConfig": {
+                  "fontSize": 12,
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "textAlign": "center",
+                  "textBaseline": "middle"
+                }
+              }
+            },
+            "filterData": {
+              "id": "byRefId",
+              "options": "B"
+            },
+            "location": {
+              "latitude": "b_pos_x",
+              "longitude": "b_pos_z",
+              "mode": "coords"
+            },
+            "name": "recording_b",
+            "tooltip": true,
+            "type": "markers"
+          }
+        ],
+        "tooltip": {
+          "mode": "details"
+        },
+        "view": {
+          "allLayers": true,
+          "id": "fit",
+          "lat": 0,
+          "lon": 0,
+          "noRepeat": false,
+          "zoom": 15
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "cfdu1ntk22cxsa"
+          },
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, heading*57.3 AS heading, (tyre_contact_point_fl_x + tyre_contact_point_fr_x + tyre_contact_point_rl_x + tyre_contact_point_rr_x) / 40000.0 AS car_pos_x, (tyre_contact_point_fl_y + tyre_contact_point_fr_y + tyre_contact_point_rl_y + tyre_contact_point_rr_y) / 4.0 AS car_pos_y, (tyre_contact_point_fl_z + tyre_contact_point_fr_z + tyre_contact_point_rl_z + tyre_contact_point_rr_z) / 40000.0 AS car_pos_z, speed_kmh, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, heading, car_pos_x, car_pos_y, car_pos_z, speed_kmh FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, heading*57.3 AS heading, (tyre_contact_point_fl_x + tyre_contact_point_fr_x + tyre_contact_point_rl_x + tyre_contact_point_rr_x) / 40000.0 AS car_pos_x, (tyre_contact_point_fl_y + tyre_contact_point_fr_y + tyre_contact_point_rl_y + tyre_contact_point_rr_y) / 4.0 AS car_pos_y, (tyre_contact_point_fl_z + tyre_contact_point_fr_z + tyre_contact_point_rl_z + tyre_contact_point_rr_z) / 40000.0 AS car_pos_z, speed_kmh, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, heading, car_pos_x, car_pos_y, car_pos_z, speed_kmh FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        },
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "cfdu1ntk22cxsa"
+          },
+          "hide": false,
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, heading*57.3 AS heading, (tyre_contact_point_fl_x + tyre_contact_point_fr_x + tyre_contact_point_rl_x + tyre_contact_point_rr_x) / 40000.0 AS car_pos_x, (tyre_contact_point_fl_y + tyre_contact_point_fr_y + tyre_contact_point_rl_y + tyre_contact_point_rr_y) / 4.0 AS car_pos_y, (tyre_contact_point_fl_z + tyre_contact_point_fr_z + tyre_contact_point_rl_z + tyre_contact_point_rr_z) / 40000.0 AS car_pos_z, speed_kmh, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, heading heading_b, car_pos_x b_pos_x, car_pos_y b_pos_y, car_pos_z b_pos_z, speed_kmh b_speed_kmh FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, heading*57.3 AS heading, (tyre_contact_point_fl_x + tyre_contact_point_fr_x + tyre_contact_point_rl_x + tyre_contact_point_rr_x) / 40000.0 AS car_pos_x, (tyre_contact_point_fl_y + tyre_contact_point_fr_y + tyre_contact_point_rl_y + tyre_contact_point_rr_y) / 4.0 AS car_pos_y, (tyre_contact_point_fl_z + tyre_contact_point_fr_z + tyre_contact_point_rl_z + tyre_contact_point_rr_z) / 40000.0 AS car_pos_z, speed_kmh, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, heading heading_b, car_pos_x b_pos_x, car_pos_y b_pos_y, car_pos_z b_pos_z, speed_kmh b_speed_kmh FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "B",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Route",
+      "type": "geomap"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "kelvin"
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "brake_temp_FL",
+                  "brake_temp_FR",
+                  "brake_temp_RL",
+                  "brake_temp_RR",
+                  "air_temp"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": true,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 19,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [
+            "max",
+            "median",
+            "min"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * (1000000337724 - 999999914728) / 1000 / 5000 AS INTEGER)) AS s), data AS (\n  SELECT (1000000000 + time_offset) AS time, tyre_core_temp_FL ,tyre_core_temp_FR ,tyre_core_temp_RL ,tyre_core_temp_RR,brake_temp_FL ,brake_temp_FR ,brake_temp_RL ,brake_temp_RR, air_temp ,road_temp ,water_temp, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN (23) AND (1000000000 + time_offset) * 1000 BETWEEN 999999914728 AND 1000000337724) \nSELECT time, tyre_core_temp_FL ,tyre_core_temp_FR ,tyre_core_temp_RL ,tyre_core_temp_RR, brake_temp_FL ,brake_temp_FR ,brake_temp_RL ,brake_temp_RR, air_temp ,road_temp ,water_temp FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, tyre_core_temp_FL, tyre_core_temp_FR, tyre_core_temp_RL, tyre_core_temp_RR, brake_temp_FL, brake_temp_FR, brake_temp_RL, brake_temp_RR, air_temp, road_temp, water_temp, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, tyre_core_temp_FL, tyre_core_temp_FR, tyre_core_temp_RL, tyre_core_temp_RR, brake_temp_FL, brake_temp_FR, brake_temp_RL, brake_temp_RR, air_temp, road_temp, water_temp FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "A",
+          "timeColumns": ["time", "ts"]
+        },
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "cfdu1ntk22cxsa"},
+          "hide": false,
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, tyre_core_temp_FL, tyre_core_temp_FR, tyre_core_temp_RL, tyre_core_temp_RR, brake_temp_FL, brake_temp_FR, brake_temp_RL, brake_temp_RR, air_temp, road_temp, water_temp, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, tyre_core_temp_FL AS tyre_core_temp_FL_b, tyre_core_temp_FR AS tyre_core_temp_FR_b, tyre_core_temp_RL AS tyre_core_temp_RL_b, tyre_core_temp_RR AS tyre_core_temp_RR_b, brake_temp_FL AS brake_temp_FL_b, brake_temp_FR AS brake_temp_FR_b, brake_temp_RL AS brake_temp_RL_b, brake_temp_RR AS brake_temp_RR_b, air_temp AS air_temp_b, road_temp AS road_temp_b, water_temp AS water_temp_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, tyre_core_temp_FL, tyre_core_temp_FR, tyre_core_temp_RL, tyre_core_temp_RR, brake_temp_FL, brake_temp_FR, brake_temp_RL, brake_temp_RR, air_temp, road_temp, water_temp, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, tyre_core_temp_FL AS tyre_core_temp_FL_b, tyre_core_temp_FR AS tyre_core_temp_FR_b, tyre_core_temp_RL AS tyre_core_temp_RL_b, tyre_core_temp_RR AS tyre_core_temp_RR_b, brake_temp_FL AS brake_temp_FL_b, brake_temp_FR AS brake_temp_FR_b, brake_temp_RL AS brake_temp_RL_b, brake_temp_RR AS brake_temp_RR_b, air_temp AS air_temp_b, road_temp AS road_temp_b, water_temp AS water_temp_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "B",
+          "timeColumns": ["time", "ts"]
+        }
+      ],
+      "title": "Temperatures",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": ""
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 21
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "cfdu1ntk22cxsa"
+          },
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, steer_angle, gas, brake, -clutch AS clutch, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, steer_angle, gas, brake, clutch FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, steer_angle, gas, brake, -clutch AS clutch, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, steer_angle, gas, brake, clutch FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "A",
+          "timeColumns": ["time", "ts"]
+        },
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "cfdu1ntk22cxsa"},
+          "hide": false,
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, steer_angle, gas, brake, -clutch AS clutch, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, steer_angle AS steer_angle_b, gas AS gas_b, brake AS brake_b, clutch AS clutch_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, steer_angle, gas, brake, -clutch AS clutch, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, steer_angle AS steer_angle_b, gas AS gas_b, brake AS brake_b, clutch AS clutch_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "B",
+          "timeColumns": ["time", "ts"]
+        }
+      ],
+      "title": "Inputs",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*normal*/"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 27
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + p.time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, pitch*57.3 AS car_pitch_angle, roll*57.3 AS car_roll_angle, tyre_contact_normal_FL_y, tyre_contact_normal_FR_y, tyre_contact_normal_RR_y, tyre_contact_normal_RL_y, ROW_NUMBER() OVER (ORDER BY p.time_offset) AS rn FROM physics p WHERE p.recording_id IN ($id_a) AND (1000000000 + p.time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, car_pitch_angle, car_roll_angle, 57.3*acos(tyre_contact_normal_FR_y) as camber_FR, 57.3*acos(tyre_contact_normal_FL_y) as camber_FL, 57.3*acos(tyre_contact_normal_RR_y) as camber_RR, 57.3*acos(tyre_contact_normal_RL_y) as camber_RL FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + p.time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, pitch*57.3 AS car_pitch_angle, roll*57.3 AS car_roll_angle, tyre_contact_normal_FL_y, tyre_contact_normal_FR_y, tyre_contact_normal_RR_y, tyre_contact_normal_RL_y, ROW_NUMBER() OVER (ORDER BY p.time_offset) AS rn FROM physics p WHERE p.recording_id IN ($id_a) AND (1000000000 + p.time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, car_pitch_angle, car_roll_angle, 57.3*acos(tyre_contact_normal_FR_y) as camber_FR, 57.3*acos(tyre_contact_normal_FL_y) as camber_FL, 57.3*acos(tyre_contact_normal_RR_y) as camber_RR, 57.3*acos(tyre_contact_normal_RL_y) as camber_RL FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "A",
+          "timeColumns": ["time", "ts"]
+        },
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "cfdu1ntk22cxsa"},
+          "hide": false,
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + p.time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, pitch*57.3 AS car_pitch_angle, roll*57.3 AS car_roll_angle, tyre_contact_normal_FL_y, tyre_contact_normal_FR_y, tyre_contact_normal_RR_y, tyre_contact_normal_RL_y, ROW_NUMBER() OVER (ORDER BY p.time_offset) AS rn FROM physics p WHERE p.recording_id IN ($id_b) AND (1000000000 + p.time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, car_pitch_angle AS car_pitch_angle_b, car_roll_angle AS car_roll_angle_b, 57.3*acos(tyre_contact_normal_FR_y) as camber_FR_b, 57.3*acos(tyre_contact_normal_FL_y) as camber_FL_b, 57.3*acos(tyre_contact_normal_RR_y) as camber_RR_b, 57.3*acos(tyre_contact_normal_RL_y) as camber_RL_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + p.time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, pitch*57.3 AS car_pitch_angle, roll*57.3 AS car_roll_angle, tyre_contact_normal_FL_y, tyre_contact_normal_FR_y, tyre_contact_normal_RR_y, tyre_contact_normal_RL_y, ROW_NUMBER() OVER (ORDER BY p.time_offset) AS rn FROM physics p WHERE p.recording_id IN ($id_b) AND (1000000000 + p.time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, car_pitch_angle AS car_pitch_angle_b, car_roll_angle AS car_roll_angle_b, 57.3*acos(tyre_contact_normal_FR_y) as camber_FR_b, 57.3*acos(tyre_contact_normal_FL_y) as camber_FL_b, 57.3*acos(tyre_contact_normal_RR_y) as camber_RR_b, 57.3*acos(tyre_contact_normal_RL_y) as camber_RL_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "B",
+          "timeColumns": ["time", "ts"]
+        }
+      ],
+      "title": "Angles",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": true,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMax": 2,
+            "axisSoftMin": -2,
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*g_/"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "points"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*mz/"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "hidden"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "speed_kmh"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "hidden"
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    10,
+                    10
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "heading"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    10,
+                    10
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*wheel/"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          },
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "g_longit"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": true,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 29
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, speed_kmh, heading, g_force_x AS g_lateral, g_force_z AS g_longit, -\"fz_FL\" AS wheelForceFL, -\"fz_FR\" AS wheelForceFR, -\"fz_RL\" AS wheelForceRL, -fz_RR AS wheelForceRR, -\"mz_FL\" AS TurningFl, -\"mz_FR\" AS TurningFR, -\"mz_RL\" AS TurningRL, -mz_RR AS TurningRR, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, speed_kmh, heading, g_lateral, g_longit, wheelForceFL, wheelForceFR, wheelForceRL, wheelForceRR, TurningFl, TurningFR, TurningRL, TurningRR FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, speed_kmh, heading, g_force_x AS g_lateral, g_force_z AS g_longit, -\"fz_FL\" AS wheelForceFL, -\"fz_FR\" AS wheelForceFR, -\"fz_RL\" AS wheelForceRL, -fz_RR AS wheelForceRR, -\"mz_FL\" AS TurningFl, -\"mz_FR\" AS TurningFR, -\"mz_RL\" AS TurningRL, -mz_RR AS TurningRR, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, speed_kmh, heading, g_lateral, g_longit, wheelForceFL, wheelForceFR, wheelForceRL, wheelForceRR, TurningFl, TurningFR, TurningRL, TurningRR FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "A",
+          "timeColumns": ["time", "ts"]
+        },
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "cfdu1ntk22cxsa"},
+          "hide": false,
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, speed_kmh, heading, g_force_x AS g_lateral, g_force_z AS g_longit, -\"fz_FL\" AS wheelForceFL, -\"fz_FR\" AS wheelForceFR, -\"fz_RL\" AS wheelForceRL, -fz_RR AS wheelForceRR, -\"mz_FL\" AS TurningFl, -\"mz_FR\" AS TurningFR, -\"mz_RL\" AS TurningRL, -mz_RR AS TurningRR, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, speed_kmh AS speed_kmh_b, heading AS heading_b, g_lateral AS g_lateral_b, g_longit AS g_longit_b, wheelForceFL AS wheelForceFL_b, wheelForceFR AS wheelForceFR_b, wheelForceRL AS wheelForceRL_b, wheelForceRR AS wheelForceRR_b, TurningFl AS TurningFl_b, TurningFR AS TurningFR_b, TurningRL AS TurningRL_b, TurningRR AS TurningRR_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, speed_kmh, heading, g_force_x AS g_lateral, g_force_z AS g_longit, -\"fz_FL\" AS wheelForceFL, -\"fz_FR\" AS wheelForceFR, -\"fz_RL\" AS wheelForceRL, -fz_RR AS wheelForceRR, -\"mz_FL\" AS TurningFl, -\"mz_FR\" AS TurningFR, -\"mz_RL\" AS TurningRL, -mz_RR AS TurningRR, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, speed_kmh AS speed_kmh_b, heading AS heading_b, g_lateral AS g_lateral_b, g_longit AS g_longit_b, wheelForceFL AS wheelForceFL_b, wheelForceFR AS wheelForceFR_b, wheelForceRL AS wheelForceRL_b, wheelForceRR AS wheelForceRR_b, TurningFl AS TurningFl_b, TurningFR AS TurningFR_b, TurningRL AS TurningRL_b, TurningRR AS TurningRR_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "B",
+          "timeColumns": ["time", "ts"]
+        }
+      ],
+      "title": "accelerations and forces",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*_load/"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    5,
+                    20
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          },
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "wheel_slip_rr",
+                  "wheel_slip_rl",
+                  "wheel_slip_fr",
+                  "wheel_slip_fl"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": true,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, wheel_load_fl, wheel_load_fr, wheel_load_rl, wheel_load_rr, wheel_slip_fl, wheel_slip_fr, wheel_slip_rl, wheel_slip_rr, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, wheel_load_fl, wheel_load_fr, wheel_load_rl, wheel_load_rr, wheel_slip_fl, wheel_slip_fr, wheel_slip_rl, wheel_slip_rr FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, wheel_load_fl, wheel_load_fr, wheel_load_rl, wheel_load_rr, wheel_slip_fl, wheel_slip_fr, wheel_slip_rl, wheel_slip_rr, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, wheel_load_fl, wheel_load_fr, wheel_load_rl, wheel_load_rr, wheel_slip_fl, wheel_slip_fr, wheel_slip_rl, wheel_slip_rr FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "A",
+          "timeColumns": ["time", "ts"]
+        },
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "cfdu1ntk22cxsa"},
+          "hide": false,
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, wheel_load_fl, wheel_load_fr, wheel_load_rl, wheel_load_rr, wheel_slip_fl, wheel_slip_fr, wheel_slip_rl, wheel_slip_rr, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, wheel_load_fl AS wheel_load_fl_b, wheel_load_fr AS wheel_load_fr_b, wheel_load_rl AS wheel_load_rl_b, wheel_load_rr AS wheel_load_rr_b, wheel_slip_fl AS wheel_slip_fl_b, wheel_slip_fr AS wheel_slip_fr_b, wheel_slip_rl AS wheel_slip_rl_b, wheel_slip_rr AS wheel_slip_rr_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, wheel_load_fl, wheel_load_fr, wheel_load_rl, wheel_load_rr, wheel_slip_fl, wheel_slip_fr, wheel_slip_rl, wheel_slip_rr, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, wheel_load_fl AS wheel_load_fl_b, wheel_load_fr AS wheel_load_fr_b, wheel_load_rl AS wheel_load_rl_b, wheel_load_rr AS wheel_load_rr_b, wheel_slip_fl AS wheel_slip_fl_b, wheel_slip_fr AS wheel_slip_fr_b, wheel_slip_rl AS wheel_slip_rl_b, wheel_slip_rr AS wheel_slip_rr_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "B",
+          "timeColumns": ["time", "ts"]
+        }
+      ],
+      "title": "Wheel data",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 37
+      },
+      "id": 1,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "cfdu1ntk22cxsa"
+          },
+          "queryText": "SELECT s.car_model, r.*  from recordings as r join statics as s on r.id = s.recording_id where r.id in ($id_a)\r\n",
+          "queryType": "table",
+          "rawQueryText": "SELECT s.car_model, r.*  from recordings as r join statics as s on r.id = s.recording_id where r.id in ($id_a)\r\n",
+          "refId": "A",
+          "timeColumns": [
+            "time",
+            "ts"
+          ]
+        }
+      ],
+      "title": "Static",
+      "transformations": [
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "dateFormat": "YY-MM-dd",
+                "destinationType": "time",
+                "targetField": "Date"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "abs"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": true,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 43
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, physics.abs, tc, abs_in_action, tc_in_action, abs_vibration, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, abs, tc, abs_in_action, tc_in_action, abs_vibration FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, physics.abs, tc, abs_in_action, tc_in_action, abs_vibration, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, abs, tc, abs_in_action, tc_in_action, abs_vibration FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "A",
+          "timeColumns": ["time", "ts"]
+        },
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "cfdu1ntk22cxsa"},
+          "hide": false,
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, physics.abs, tc, abs_in_action, tc_in_action, abs_vibration, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, abs AS abs_b, tc AS tc_b, abs_in_action AS abs_in_action_b, tc_in_action AS tc_in_action_b, abs_vibration AS abs_vibration_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, physics.abs, tc, abs_in_action, tc_in_action, abs_vibration, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, abs AS abs_b, tc AS tc_b, abs_in_action AS abs_in_action_b, tc_in_action AS tc_in_action_b, abs_vibration AS abs_vibration_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "B",
+          "timeColumns": ["time", "ts"]
+        }
+      ],
+      "title": "Driving aids",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "cfdu1ntk22cxsa"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 43
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.3",
+      "targets": [
+        {
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, suspension_travel_fl, suspension_travel_fr, suspension_travel_rl, suspension_travel_rr, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, suspension_travel_fl, suspension_travel_fr, suspension_travel_rl, suspension_travel_rr FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) AS time, suspension_travel_fl, suspension_travel_fr, suspension_travel_rl, suspension_travel_rr, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_a) AND (1000000000 + time_offset + COALESCE(CAST($offset_a AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, suspension_travel_fl, suspension_travel_fr, suspension_travel_rl, suspension_travel_rr FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "A",
+          "timeColumns": ["time", "ts"]
+        },
+        {
+          "datasource": {"type": "frser-sqlite-datasource", "uid": "cfdu1ntk22cxsa"},
+          "hide": false,
+          "queryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, suspension_travel_fl, suspension_travel_fr, suspension_travel_rl, suspension_travel_rr, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, suspension_travel_fl AS suspension_travel_fl_b, suspension_travel_fr AS suspension_travel_fr_b, suspension_travel_rl AS suspension_travel_rl_b, suspension_travel_rr AS suspension_travel_rr_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "queryType": "table",
+          "rawQueryText": "WITH step AS (SELECT MAX(1, CAST(333.0 * ($__to - $__from) / 1000 / 5000 AS INTEGER)) AS s), data AS (SELECT (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) AS time, suspension_travel_fl, suspension_travel_fr, suspension_travel_rl, suspension_travel_rr, ROW_NUMBER() OVER (ORDER BY time_offset) AS rn FROM physics WHERE recording_id IN ($id_b) AND (1000000000 + time_offset + COALESCE(CAST($offset_b AS REAL),0.0)) * 1000 BETWEEN $__from AND $__to) SELECT time, suspension_travel_fl AS suspension_travel_fl_b, suspension_travel_fr AS suspension_travel_fr_b, suspension_travel_rl AS suspension_travel_rl_b, suspension_travel_rr AS suspension_travel_rr_b FROM data, step WHERE (data.rn - 1) % step.s = 0 ORDER BY time",
+          "refId": "B",
+          "timeColumns": ["time", "ts"]
+        }
+      ],
+      "title": "Suspension data",
+      "type": "timeseries"
+    }
+  ],
+  "preload": false,
+  "refresh": "",
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": true,
+        "current": {
+          "text": "30",
+          "value": "30"
+        },
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "cfdu1ntk22cxsa"
+        },
+        "definition": "SELECT id FROM recordings ORDER BY id ASC",
+        "includeAll": false,
+        "label": "recording_id_a",
+        "name": "id_a",
+        "options": [],
+        "query": "SELECT id FROM recordings ORDER BY id ASC",
+        "refresh": 1,
+        "regex": "",
+        "sort": 3,
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": "31",
+          "value": "31"
+        },
+        "definition": "select id from recordings where not(id= $id_a)",
+        "label": "recording_id_b",
+        "name": "id_b",
+        "options": [],
+        "query": "select id from recordings where not(id= $id_a)",
+        "refresh": 1,
+        "regex": "",
+        "sort": 3,
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": "1.1",
+          "value": "1.1"
+        },
+        "label": "offset_a [seconds]",
+        "name": "offset_a",
+        "options": [],
+        "query": "",
+        "type": "custom"
+      },
+      {
+        "current": {
+          "text": "0",
+          "value": "0"
+        },
+        "label": "offset_b [seconds]",
+        "name": "offset_b",
+        "options": [],
+        "query": "",
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {
+    "from": "2001-09-09T01:46:49.721Z",
+    "to": "2001-09-09T01:47:10.061Z"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "AC Rally comparison",
+  "uid": "f458a8b7-7b72-4648-a07d-c7a07f8b8da6",
+  "version": 11
+}

@@ -20,7 +20,7 @@ Telemetry recording and analysis for **Assetto Corsa Competizione (ACC)** and **
 
 2. **Configure**: Copy `acr_recorder.toml.example` (if present) or create `acr_recorder.toml` for recorder/export. For the bridge, use `acr_telemetry_bridge.toml` next to the executable.
 
-3. **Record**: Run `target/release/acr_recorder.exe` while ACC/AC Rally is running. Press **F9** to stop.
+3. **Record**: Run `target/release/acr_recorder.exe` while ACC/AC Rally is running. **Ctrl+C** to stop, or run `acr_stop.bat` (bind to game controller for in-game stop).
 
 4. **Export**: `target/release/acr_export telemetry_raw --sqlite` to create a SQLite database for Grafana.
 

@@ -10,6 +10,7 @@ acr_recorder.toml
 /telemetry_raw/
 telemetry.db
 telemetry.db.bak
+/grafanimate/
 *.rkyv
 acc_physics_*.csv
 acc_physics_*.json

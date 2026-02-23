@@ -103,12 +103,17 @@ pub struct RecorderConfig {
     /// Directory for raw .rkyv recordings (relative to CWD or absolute).
     #[serde(default = "default_raw_output_dir")]
     pub raw_output_dir: String,
+    /// Path to stop file. Creating this file signals acr_recorder to exit.
+    /// Relative to CWD or absolute. Empty = %APPDATA%/acr_recorder/acr_stop (Windows) or ~/.config/acr_recorder/acr_stop (Linux).
+    #[serde(default)]
+    pub stop_file_path: Option<String>,
 }
 
 impl Default for RecorderConfig {
     fn default() -> Self {
         Self {
             raw_output_dir: default_raw_output_dir(),
+            stop_file_path: None,
         }
     }
 }
@@ -203,6 +208,17 @@ pub fn load_bridge_config() -> BridgeConfig {
         }
     }
     BridgeConfig::default()
+}
+
+/// Path to the stop file. Creating this file signals acr_recorder to exit.
+/// Uses config if set, else platform default (config_dir/acr_recorder/acr_stop).
+pub fn resolve_stop_file_path(cfg: &RecorderConfig) -> PathBuf {
+    match &cfg.stop_file_path {
+        Some(s) if !s.is_empty() => resolve_path(s),
+        _ => dirs::config_dir()
+            .map(|d| d.join("acr_recorder").join("acr_stop"))
+            .unwrap_or_else(|| PathBuf::from(".acr_stop")),
+    }
 }
 
 /// Resolve a path (relative or absolute). Relative paths are resolved against CWD.
