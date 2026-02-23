@@ -33,7 +33,7 @@ As you run this tool in the command line, whenever it successfully enters record
 ## 4. Match Dashboard to Datasource
 
 1. Open `grafanimate/dashboard.json` with a text editor.
-2. Any grafana server will assign their own UID to the SQLite-Datasource we just created. So find and replace the datasource UID from mine `e8e7df64-1fd3-4995-acb0-f66db5fda3ab` with your UID.
+2. Any grafana server will assign their own UID to the SQLite-Datasource we just created. So find and replace the datasource UID from mine `cfdu1ntk22cxsa` with your UID.
 3. Save
 
 ## 5. Import Dashboard
