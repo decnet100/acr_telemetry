@@ -4,7 +4,7 @@ Web dashboard for monitoring ACC/AC Rally temperatures and telemetry on a second
 
 # Requirements
 
-- **acr_telemetry_bridge** running on the gaming PC (Use binary release .exe, or build yourself using `cargo build --release` from repo root)
+- **acr_telemetry_bridge** running on the gaming PC. Use the binary from `target/release/acr_telemetry_bridge.exe` after `cargo build --release`, or run from **bin/** if you have symlinks there pointing to the release binaries.
 - Gaming PC and receiver on the same WLAN/LAN (simplest for testing: use browser on gaming computer, keep game window visible and alt+tab open the browser.
 
 ## Usage
@@ -13,7 +13,7 @@ Web dashboard for monitoring ACC/AC Rally temperatures and telemetry on a second
    ```bash
    acr_telemetry_bridge --http 0.0.0.0:8080 --rate 5
    ```
-   Create a config: `acr_telemetry_bridge.toml` next to the executable in the same directory (or CWD, or `~/.config/acr_recorder/`). If this is set, you can simply call acr_telemetry_bridge.exe without arguments.
+   Create a config: `acr_telemetry_bridge.toml` next to the executable (e.g. in `bin/` when using the bin symlinks), or in CWD, or `~/.config/acr_recorder/`. Copy from **`config-examples/acr_telemetry_bridge.toml`** and adjust. If this is set, you can simply call `acr_telemetry_bridge.exe` without arguments.
 
 2. **On phone or second device**, open in browser:
    ```
@@ -47,7 +47,7 @@ Either in the same file under **[telemetry_colors]**:
 - **[telemetry_colors.colors]** – Hex colors for levels: very_low, low, normal, high, very_high, ignore.
 - **[telemetry_colors.fields.field_id]** – Per-field thresholds (very_low, low, normal, high, very_high). Omit a field = use default or ignore.
 
-Or in a separate **`telemetry_color.toml`** (same directory or `~/.config/acr_recorder/`) with **[colors]** and **[fields.field_id]** – used as fallback when [telemetry_colors] is not set in the bridge config.
+Or in a separate **`telemetry_color.toml`** (same directory or `~/.config/acr_recorder/`) with **[colors]** and **[fields.field_id]** – used as fallback when [telemetry_colors] is not set in the bridge config. Example in repo: **`config-examples/telemetry_color.toml`**.
 
 ## CLI Options
 

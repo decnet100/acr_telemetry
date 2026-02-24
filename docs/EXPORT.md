@@ -32,7 +32,7 @@ If you omit both `--csv` and `--sqlite`, the tool uses the **default_method** fr
 | `--csv` | Export to CSV and MoTeC LD. Single file: writes `<stem>.csv`, optionally `<stem>.graphics.csv`, and `<stem>.ld`. |
 | `--sqlite [path]` | Export to SQLite. If **path** is omitted, uses **sqlite_db_path** from config (default `telemetry.db`). Path is relative to CWD or absolute. |
 
-**Config:** `./acr_recorder.toml` or `~/.config/acr_recorder/config.toml`.
+**Config:** `acr_recorder.toml` in the current working directory (e.g. repo root or `bin/` if you run from there) or `~/.config/acr_recorder/config.toml`. Example: copy from **`config-examples/acr_recorder.toml`** and set `raw_output_dir` and `sqlite_db_path`.
 
 Relevant keys under `[export]`:
 

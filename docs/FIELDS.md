@@ -1,6 +1,6 @@
 # Available Fields (acr_telemetry_bridge)
 
-Complete list of fields the bridge outputs as flat JSON. Usable in `dashboard_slots` and `telemetry_color.toml`.
+Complete list of fields the bridge outputs as flat JSON. Usable in `dashboard_slots` (in `acr_telemetry_bridge.toml`) and in `telemetry_color.toml` (example: **`config-examples/telemetry_color.toml`**).
 
 The `/config` API also returns this list as `available_fields`.
 
@@ -87,7 +87,7 @@ Examples: `tyre_core_temp_fl`, `brake_temp_rr`, `slip_angle_fr`, etc.
 
 ---
 
-## Aliases (for backward compatibility)
+## Aliases (for brevity in bridge display)
 
 | Alias | Equivalent to |
 |-------|---------------|
