@@ -1,4 +1,4 @@
-# acr_telemetry_bridge configuration
+# acr_telemetry_bridge configuration (bridge + dashboard colors in one file)
 # Paths: ./acr_telemetry_bridge.toml or ~/.config/acr_recorder/acr_telemetry_bridge.toml
 
 rate_hz = 5
@@ -12,3 +12,19 @@ dashboard_slots = [
   "brake_fl", "brake_fr", "brake_rl", "brake_rr",
   "speed_kmh", "gear", "rpm"
 ]
+
+# Optional: dashboard coloring (palette + per-field thresholds). Omit to use defaults or fallback to telemetry_color.toml
+# [telemetry_colors.colors]
+# very_low = "#1a1a5f"
+# low = "#7dd3fc"
+# normal = "#fde047"
+# high = "#fb923c"
+# very_high = "#ef4444"
+# ignore = "#ffffff"
+# [telemetry_colors.fields.water_temp]
+# very_low = -273
+# low = 0
+# normal = 50
+# high = 95
+# very_high = 120
+# (more [telemetry_colors.fields.<field_id>] as needed)

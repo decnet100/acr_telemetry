@@ -22,11 +22,11 @@ Web dashboard for monitoring ACC/AC Rally temperatures and telemetry on a second
    Example: `http://192.168.1.42:8080`. 
 
 
-3. The dashboard auto-refreshes and shows configurable fields (speed, temps, fuel, etc.). You can control the content and order of fields in the `acr_telemetry_bridge.toml` and coloring in the `telemetry_color.toml`.
+3. The dashboard auto-refreshes and shows configurable fields (speed, temps, fuel, etc.). Configure fields and coloring in **`acr_telemetry_bridge.toml`** (all in one file).
 
 ## Configuration
 
-`acr_telemetry_bridge.toml`:
+**`acr_telemetry_bridge.toml`** – bridge options and optional dashboard colors:
 
 Full field list: see **[FIELDS.md](FIELDS.md)**.
 
@@ -35,14 +35,19 @@ rate_hz = 5
 http_addr = "0.0.0.0:8080"
 temperature_unit = "c"   # "c", "f", "k"
 dashboard_slots = ["water_temp", "road_temp", "tyre_fl", "speed_kmh", "gear", "rpm"]
+
+# Optional: [telemetry_colors] – threshold-based coloring (palette + per-field thresholds)
+# Add [telemetry_colors.colors] and [telemetry_colors.fields.<field_id>]. If omitted, defaults are used or telemetry_color.toml is loaded as fallback.
 ```
 
-### telemetry_color.toml
+### Dashboard colors (optional)
 
-Threshold-based coloring. Place next to the executable or in `~/.config/acr_recorder/`.
+Either in the same file under **[telemetry_colors]**:
 
-- **[colors]** – Hex colors for levels: very_low, low, normal, high, very_high, ignore/unknown. 
-- **[fields.field_id]** – Per-field thresholds. If no threshold is set, or the value for the field is below the very_low threshold, the color set for ignore/unknown will be used.
+- **[telemetry_colors.colors]** – Hex colors for levels: very_low, low, normal, high, very_high, ignore.
+- **[telemetry_colors.fields.field_id]** – Per-field thresholds (very_low, low, normal, high, very_high). Omit a field = use default or ignore.
+
+Or in a separate **`telemetry_color.toml`** (same directory or `~/.config/acr_recorder/`) with **[colors]** and **[fields.field_id]** – used as fallback when [telemetry_colors] is not set in the bridge config.
 
 ## CLI Options
 

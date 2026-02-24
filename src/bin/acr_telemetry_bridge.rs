@@ -438,7 +438,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(ref addr) = http_addr {
         let state_clone = state.clone();
         let addr_clone = addr.clone();
-        let color_cfg = color_config::load_color_config();
+        let color_cfg = bridge
+            .telemetry_colors
+            .clone()
+            .unwrap_or_else(color_config::load_color_config);
         let dashboard_config = DashboardConfigResponse {
             slots: bridge
                 .dashboard_slots

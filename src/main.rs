@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cfg = config::load_config();
     let output_path = output_path(&cfg)?;
-    let notes_dir = config::resolve_path(&cfg.recorder.raw_output_dir);
+    let notes_dir = config::resolve_notes_dir(&cfg.recorder);
     let mut stop_path = config::resolve_stop_file_path(&cfg.recorder);
     if stop_path.is_relative() {
         if let Ok(cwd) = std::env::current_dir() {
@@ -38,6 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if stop_path.exists() {
         let _ = std::fs::remove_file(&stop_path);
     }
+    let _ = std::fs::create_dir_all(&notes_dir);
     acr_recorder::notes::reset_notes_at_start(&notes_dir)?;
     let start_time = chrono::Utc::now();
     eprintln!("Recording to: {}", output_path.display());

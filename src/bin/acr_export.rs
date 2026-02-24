@@ -15,7 +15,40 @@ use std::path::{Path, PathBuf};
 
 use acr_recorder::config;
 use acr_recorder::export::sqlite_export::RecordingNotesContent;
-use acr_recorder::notes::RecordingNotesJson;
+use acr_recorder::notes::{Annotation, RecordingNotesJson};
+use acr_recorder::record::PhysicsRecord;
+
+/// Build annotations for time synchronization from physics: first air_temp > 0, first speed_kmh > 0,
+/// and each time air_temp crosses from <= 0 to > 0 (e.g. after returning to menu and re-entering).
+/// Runs only during export (offline); no impact on recording performance.
+fn sync_annotations_from_physics(records: &[PhysicsRecord], dt_sec: f64) -> Vec<Annotation> {
+    let mut out = Vec::new();
+    let mut added_first_speed = false;
+    for (i, r) in records.iter().enumerate() {
+        let t = i as f64 * dt_sec;
+        // A) Each time air_temp crosses from <= 0 to > 0
+        if r.air_temp > 0.0 && (i == 0 || records[i - 1].air_temp <= 0.0) {
+            out.push(Annotation {
+                time_offset_sec: t,
+                time_end_sec: None,
+                text: format!("air_temp > 0 ({:.1} °C)", r.air_temp),
+                tag: "sync_air_temp_gt_0".into(),
+            });
+        }
+        // B) First time speed_kmh > 3 only (threshold avoids noise at standstill)
+        if !added_first_speed && r.speed_kmh > 3.0 && (i == 0 || records[i - 1].speed_kmh <= 3.0) {
+            added_first_speed = true;
+            out.push(Annotation {
+                time_offset_sec: t,
+                time_end_sec: None,
+                text: format!("speed_kmh > 3 ({:.1} km/h)", r.speed_kmh),
+                tag: "sync_speed_gt_0".into(),
+            });
+        }
+    }
+    out.sort_by(|a, b| a.time_offset_sec.partial_cmp(&b.time_offset_sec).unwrap_or(std::cmp::Ordering::Equal));
+    out
+}
 
 /// Read <stem>.notes.json and convert to RecordingNotesContent + annotations for SQLite export.
 fn read_notes_json(rkyv_path: &Path) -> Option<(RecordingNotesContent, Vec<acr_recorder::notes::Annotation>)> {
@@ -201,8 +234,17 @@ fn batch_export(
             }
         }
 
-        export_single(input, do_sqlite, do_csv, sqlite_db)?;
-        exported += 1;
+        match export_single(input, do_sqlite, do_csv, sqlite_db) {
+            Ok(()) => exported += 1,
+            Err(e) => {
+                let msg = e.to_string();
+                if msg.contains("No records") || msg.contains("empty") {
+                    eprintln!("Empty file, skipping: {}", input.display());
+                } else {
+                    eprintln!("Corrupt or unreadable file, skipping: {} — {}", input.display(), msg);
+                }
+            }
+        }
     }
 
     eprintln!("Batch done: {} exported, {} skipped", exported, skipped);
@@ -243,10 +285,15 @@ fn export_single(
 
     if do_sqlite {
         let notes_and_ann = read_notes_json(input);
-        let (notes_content, annotations) = match &notes_and_ann {
-            Some((c, a)) => (Some(c as &RecordingNotesContent), a.as_slice()),
-            None => (None, &[][..]),
+        let (notes_content, user_annotations) = match &notes_and_ann {
+            Some((c, a)) => (Some(c as &RecordingNotesContent), a.clone()),
+            None => (None, Vec::new()),
         };
+        let dt_sec = 1.0 / sample_rate as f64;
+        let sync_ann = sync_annotations_from_physics(&records, dt_sec);
+        let mut all_annotations = sync_ann;
+        all_annotations.extend(user_annotations);
+        all_annotations.sort_by(|a, b| a.time_offset_sec.partial_cmp(&b.time_offset_sec).unwrap_or(std::cmp::Ordering::Equal));
         let rid = acr_recorder::export::sqlite_export::export_to_sqlite(
             sqlite_db,
             source_file,
@@ -254,10 +301,10 @@ fn export_single(
             sample_rate,
             statics.as_ref(),
             notes_content,
-            if annotations.is_empty() {
+            if all_annotations.is_empty() {
                 None
             } else {
-                Some(annotations)
+                Some(&all_annotations)
             },
         )?;
         eprintln!("Appended to {} (recording_id={})", sqlite_db, rid);

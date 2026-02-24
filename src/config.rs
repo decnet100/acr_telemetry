@@ -2,6 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::color_config::ColorConfig;
+
 #[derive(Debug, Clone, serde::Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
@@ -29,6 +31,9 @@ pub struct BridgeConfig {
     /// brake_fl, brake_fr, brake_rl, brake_rr, speed_kmh, gear, rpm
     #[serde(default = "default_dashboard_slots")]
     pub dashboard_slots: Vec<DashboardSlot>,
+    /// Dashboard coloring: palette and per-field thresholds. Omit to use defaults or load from telemetry_color.toml (fallback).
+    #[serde(default)]
+    pub telemetry_colors: Option<ColorConfig>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -81,6 +86,7 @@ impl Default for BridgeConfig {
             http_addr: default_http_addr(),
             temperature_unit: default_temperature_unit(),
             dashboard_slots: default_dashboard_slots(),
+            telemetry_colors: None,
         }
     }
 }
@@ -104,9 +110,12 @@ pub struct RecorderConfig {
     #[serde(default = "default_raw_output_dir")]
     pub raw_output_dir: String,
     /// Path to stop file. Creating this file signals acr_recorder to exit.
-    /// Relative to CWD or absolute. Empty = %APPDATA%/acr_recorder/acr_stop (Windows) or ~/.config/acr_recorder/acr_stop (Linux).
+    /// Relative to CWD or absolute. Empty = %APPDATA%/acr_telemetry/acr_stop (Windows) or ~/.config/acr_telemetry/acr_stop (Linux).
     #[serde(default)]
     pub stop_file_path: Option<String>,
+    /// Directory for acr_notes and acr_elapsed_secs (batch scripts). Empty = %APPDATA%/acr_telemetry.
+    #[serde(default)]
+    pub notes_dir: Option<String>,
 }
 
 impl Default for RecorderConfig {
@@ -114,6 +123,7 @@ impl Default for RecorderConfig {
         Self {
             raw_output_dir: default_raw_output_dir(),
             stop_file_path: None,
+            notes_dir: None,
         }
     }
 }
@@ -211,13 +221,23 @@ pub fn load_bridge_config() -> BridgeConfig {
 }
 
 /// Path to the stop file. Creating this file signals acr_recorder to exit.
-/// Uses config if set, else platform default (config_dir/acr_recorder/acr_stop).
+/// Uses config if set, else platform default (config_dir/acr_telemetry/acr_stop).
 pub fn resolve_stop_file_path(cfg: &RecorderConfig) -> PathBuf {
     match &cfg.stop_file_path {
         Some(s) if !s.is_empty() => resolve_path(s),
         _ => dirs::config_dir()
-            .map(|d| d.join("acr_recorder").join("acr_stop"))
+            .map(|d| d.join("acr_telemetry").join("acr_stop"))
             .unwrap_or_else(|| PathBuf::from(".acr_stop")),
+    }
+}
+
+/// Directory for acr_notes and acr_elapsed_secs (used by batch scripts). Uses config if set, else %APPDATA%/acr_telemetry.
+pub fn resolve_notes_dir(cfg: &RecorderConfig) -> PathBuf {
+    match &cfg.notes_dir {
+        Some(s) if !s.is_empty() => resolve_path(s),
+        _ => dirs::config_dir()
+            .map(|d| d.join("acr_telemetry"))
+            .unwrap_or_else(|| PathBuf::from(".")),
     }
 }
 
