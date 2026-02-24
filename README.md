@@ -47,19 +47,21 @@ You can attach a short description to each recording (e.g. “comparison of ABS 
 
   2. **When**: Your tool should append lines to that file whenever the user speaks a note (e.g. “telemetry note, comparison of abs level efficiency”) or a stop reason (e.g. “telemetry stop, test run aborted, crash”). Including a timestamp in each line is recommended.
 
-  **On stop**: The recorder reads `acr_notes` and any `acr_<field>` files, writes a `.notes` sidecar (with "Recording started/ended" header) and `.notes_<field>` sidecars next to the `.rkyv`, then removes the source files. During recording it writes `acr_elapsed_secs` (current recording time in seconds) so batch scripts can add elapsed time to markers.
+  **On stop**: The recorder reads `acr_notes` and any `acr_<field>` files, writes a single **`<stem>.notes.json`** (notes, fields, and parsed annotations from `#marker` lines) next to the `.rkyv`, then removes the source files. During recording it writes `acr_elapsed_secs` (current recording time in seconds) so batch scripts can add elapsed time to markers.
 
-  **Batch helpers** (in `batch/`): `acr_stop.bat` only creates `acr_stop`. `acr_note_good.bat` appends a marker and does not stop; `acr_note_aborted.bat` appends then stops. Run from repo root.… aborted`) to the notes file and then stop. Run from the repo root or ensure `telemetry_raw\acr_notes.txt` is relative to the batch folder’s parent.
+  **Batch helpers** (in `batch/`): `acr_stop.bat` only creates `acr_stop`. `acr_note_good.bat` appends a marker and does not stop; `acr_note_aborted.bat` appends then stops. These should be able to run anywhere. 
 
   **Export**: `acr_export ... --sqlite` reads each recording’s `.notes` and `.notes_<field>` sidecars and fills the `recording_notes` table.
 
 Content is stored only as plain text (no execution or interpretation). Safe to use with third-party voice-to-text tools.
 
 ## Documentation
-- **[docs/FIELDS.md](docs/FIELDS.md)** – Available telemetry fields (data variables) with small description of what they do.
+- **[docs/EXPORT.md](docs/EXPORT.md)** – acr_export: options, batch mode, CSV vs SQLite, sidecars.
+- **[docs/FIELDS.md](docs/FIELDS.md)** – Available telemetry fields (data variables) with short descriptions.
 - **[docs/BRIDGE.md](docs/BRIDGE.md)** – Bridge web dashboard readme.
-- **[grafana/DASHBOARD_SETUP.md](grafana/DASHBOARD_SETUP.md)** – Grafana installation and dashboard setup
-- **[vendor/acc_shared_memory_rs/](vendor/acc_shared_memory_rs/)** – ACC shared memory library
+- **[grafana/DASHBOARD_SETUP.md](grafana/DASHBOARD_SETUP.md)** – Grafana installation and dashboard setup.
+- **[grafana/ANNOTATIONS.md](grafana/ANNOTATIONS.md)** – Using recording markers as Grafana annotations.
+- **[vendor/acc_shared_memory_rs/](vendor/acc_shared_memory_rs/)** – ACC shared memory library.
 
 ## License
 
