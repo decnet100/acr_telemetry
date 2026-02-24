@@ -31,6 +31,10 @@ Telemetry recording and analysis for **Assetto Corsa Competizione (ACC)** and **
 
 6. **Dashboard**: See `grafanimate/DASHBOARD_SETUP.md` for Grafana setup.
 
+## Telemetry bridge (live monitoring)
+
+The **acr_telemetry_bridge** is a separate program for **live** telemetry: it reads ACC/AC Rally shared memory at low rate (1–10 Hz) and sends data via UDP and/or a small HTTP server. Use it to view temperatures (or other values - it supports every variable the game makes available) on a phone or second device while driving. Config: `acr_telemetry_bridge.toml` (next to the executable or in `~/.config/acr_recorder/`). See **[docs/BRIDGE.md](docs/BRIDGE.md)** for setup and the **acr_receiver/** web UI.
+
 ## Recording notes (voice / manual)
 
 You can attach a short description to each recording (e.g. “comparison of ABS levels”, “test run aborted”) so you can tell them apart later in Grafana or in the SQLite DB.
@@ -45,7 +49,7 @@ You can attach a short description to each recording (e.g. “comparison of ABS 
 
   **On stop**: The recorder reads `acr_notes` and any `acr_<field>` files, writes a `.notes` sidecar (with "Recording started/ended" header) and `.notes_<field>` sidecars next to the `.rkyv`, then removes the source files. During recording it writes `acr_elapsed_secs` (current recording time in seconds) so batch scripts can add elapsed time to markers.
 
-  **Batch helpers** (in `batch/`): `acr_stop.bat` only creates `acr_stop`. `acr_note_good.bat` appends a marker and does not stop; `acr_note_aborted.bat` appends then stops. Run from repo root. Good/aborted markers use real time and recorder elapsed; good does not stop, aborted stops after appending.   `acr_stop.bat` (stop only), you can use `acr_note_good.bat` or `acr_note_aborted.bat` to append a timestamped label (`[YYYY-MM-DD HH:MM:SS] good` or `… aborted`) to the notes file and then stop. Run from the repo root or ensure `telemetry_raw\acr_notes.txt` is relative to the batch folder’s parent.
+  **Batch helpers** (in `batch/`): `acr_stop.bat` only creates `acr_stop`. `acr_note_good.bat` appends a marker and does not stop; `acr_note_aborted.bat` appends then stops. Run from repo root.… aborted`) to the notes file and then stop. Run from the repo root or ensure `telemetry_raw\acr_notes.txt` is relative to the batch folder’s parent.
 
   **Export**: `acr_export ... --sqlite` reads each recording’s `.notes` and `.notes_<field>` sidecars and fills the `recording_notes` table.
 
