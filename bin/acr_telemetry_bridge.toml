@@ -1,14 +1,1 @@
-# acr_telemetry_bridge configuration
-# Paths: ./acr_telemetry_bridge.toml 
-
-rate_hz = 5
-http_addr = "0.0.0.0:9000"
-# udp_target = "192.168.1.255:9000"  # optional: broadcast UDP
-temperature_unit = "c"
-# Dashboard: welche Felder in welcher Reihenfolge angezeigt werden (beliebige Felder aus available_fields)
-dashboard_slots = [
-  "water_temp", "road_temp", "air_temp", "rpm",
-  "tyre_fl", "tyre_fr", "tyre_rl", "tyre_rr",
-  "brake_fl", "brake_fr", "brake_rl", "brake_rr",
-  "speed_kmh", "gear", "fuel"
-]
+c:/temp/acc/target/release/acr_telemetry_bridge.toml
