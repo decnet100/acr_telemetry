@@ -1,0 +1,111 @@
+# telemetry_color.toml – Threshold-based coloring for ACR dashboard
+# Loaded from CWD or ~/.config/acr_recorder/telemetry_color.toml
+
+[colors]
+# Levels: very_low, low, normal, high, very_high, ignore
+# Value maps to highest threshold it meets. Below all thresholds = ignore.
+very_low = "#1a1a5f"   # dark blue
+low = "#7dd3fc"        # light blue
+normal = "#fde047"     # yellow
+high = "#fb923c"       # orange
+very_high = "#ef4444"  # red
+ignore = "#ffffff"     # white (no highlight)
+
+# Per-field thresholds (optional). Values in display unit (°C, °F, etc.).
+# Only define levels you need; omit = use default or ignore.
+
+[fields.water_temp]
+very_low = -273
+low = 0
+normal = 50
+high = 95
+very_high = 120
+
+[fields.road_temp]
+very_low = -10
+low = 0
+normal = 10
+high = 20
+very_high = 30
+
+[fields.air_temp]
+very_low = -10
+low = 0
+normal = 10
+high = 20
+very_high = 30
+
+[fields.fuel]
+very_low = 0
+low = 5
+normal = 20
+high = 50
+very_high = 80
+
+[fields.tyre_fl]
+very_low = 50
+low = 70
+normal = 85
+high = 100
+very_high = 120
+
+[fields.tyre_fr]
+very_low = 0
+low = 50
+normal = 70
+high = 100
+very_high = 120
+
+[fields.tyre_rl]
+very_low = 0
+low = 50
+normal = 70
+high = 100
+very_high = 120
+
+[fields.tyre_rr]
+very_low = 0
+low = 50
+normal = 70
+high = 100
+very_high = 120
+
+[fields.brake_fl]
+low = 200
+normal = 300
+high = 500
+very_high = 700
+
+[fields.brake_fr]
+low = 200
+normal = 300
+high = 500
+very_high = 700
+
+[fields.brake_rl]
+low = 200
+normal = 300
+high = 500
+very_high = 700
+
+[fields.brake_rr]
+low = 200
+normal = 300
+high = 500
+very_high = 700
+
+[fields.speed_kmh]
+very_low = 0
+low = 50
+normal = 100
+high = 200
+very_high = 300
+
+# [fields.gear]  # omit = ignore (no coloring)
+
+[fields.rpm]
+very_low = 0
+low = 1000
+normal = 4000
+high = 6000
+very_high = 8000

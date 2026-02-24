@@ -1,0 +1,13 @@
+# Example configuration for acr_recorder and acr_export
+# Copy to acr_recorder.toml (in project root or CWD) or
+# ~/.config/acr_recorder/config.toml
+
+[recorder]
+# Directory for raw .rkyv recordings (relative to CWD or absolute path)
+raw_output_dir = "c:/temp/acc/telemetry_raw"
+
+[export]
+# Default export method: "csv" or "sqlite"
+default_method = "csv"
+# Default path for SQLite database (relative to CWD or absolute)
+sqlite_db_path = "c:/temp/acc/telemetry.db"
