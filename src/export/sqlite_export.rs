@@ -156,6 +156,33 @@ CREATE TABLE IF NOT EXISTS graphics (
 
 CREATE INDEX IF NOT EXISTS idx_graphics_recording ON graphics(recording_id);
 CREATE INDEX IF NOT EXISTS idx_graphics_time ON graphics(recording_id, time_offset);
+
+-- User-editable notes and experiment metadata (one row per recording; all TEXT, mostly empty)
+CREATE TABLE IF NOT EXISTS recording_notes (
+    recording_id INTEGER PRIMARY KEY,
+    notes TEXT,
+    laptime TEXT,
+    result TEXT,
+    driver_impression TEXT,
+    tested_parameters TEXT,
+    conditions TEXT,
+    setup_notes TEXT,
+    session_goal TEXT,
+    incident TEXT,
+    FOREIGN KEY (recording_id) REFERENCES recordings(id)
+);
+
+-- Annotations for Grafana (point or range). time_offset_sec aligns with physics time_offset; Grafana uses (1000000000 + time_offset_sec)*1000 for time column.
+CREATE TABLE IF NOT EXISTS annotations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recording_id INTEGER NOT NULL,
+    time_offset_sec REAL NOT NULL,
+    time_end_sec REAL,
+    text TEXT NOT NULL,
+    tag TEXT,
+    FOREIGN KEY (recording_id) REFERENCES recordings(id)
+);
+CREATE INDEX IF NOT EXISTS idx_annotations_recording ON annotations(recording_id);
 "#;
 
 /// Check if a recording with the given source_file is already in the database.
@@ -172,14 +199,32 @@ pub fn recording_exists(db_path: impl AsRef<Path>, source_file: &str) -> rusqlit
     Ok(count > 0)
 }
 
+/// Optional content for recording_notes columns (from .notes and .notes_<field> sidecars).
+#[derive(Default)]
+pub struct RecordingNotesContent {
+    pub notes: Option<String>,
+    pub laptime: Option<String>,
+    pub result: Option<String>,
+    pub driver_impression: Option<String>,
+    pub tested_parameters: Option<String>,
+    pub conditions: Option<String>,
+    pub setup_notes: Option<String>,
+    pub session_goal: Option<String>,
+    pub incident: Option<String>,
+}
+
 /// Export physics records to SQLite. Appends to existing db or creates it.
 /// Returns the recording_id for the new session.
+/// `notes_content`: optional content for recording_notes (from .notes.json).
+/// `annotations`: optional annotations for Grafana (from .notes.json); inserted into `annotations` table.
 pub fn export_to_sqlite(
     db_path: impl AsRef<Path>,
     source_file: &str,
     records: &[PhysicsRecord],
     sample_rate_hz: u32,
     statics: Option<&crate::record::StaticsRecord>,
+    notes_content: Option<&RecordingNotesContent>,
+    annotations: Option<&[crate::notes::Annotation]>,
 ) -> rusqlite::Result<i64> {
     let mut conn = Connection::open(db_path)?;
     conn.execute_batch(SCHEMA)?;
@@ -195,6 +240,47 @@ pub fn export_to_sqlite(
         params![source_file, created_at, duration_secs, records.len()],
     )?;
     let recording_id = tx.last_insert_rowid();
+
+    let (notes, laptime, result, driver_impression, tested_parameters, conditions, setup_notes, session_goal, incident) =
+        notes_content
+            .map(|n| {
+                (
+                    n.notes.as_deref(),
+                    n.laptime.as_deref(),
+                    n.result.as_deref(),
+                    n.driver_impression.as_deref(),
+                    n.tested_parameters.as_deref(),
+                    n.conditions.as_deref(),
+                    n.setup_notes.as_deref(),
+                    n.session_goal.as_deref(),
+                    n.incident.as_deref(),
+                )
+            })
+            .unwrap_or((None, None, None, None, None, None, None, None, None));
+
+    tx.execute(
+        r#"INSERT INTO recording_notes (recording_id, notes, laptime, result, driver_impression, tested_parameters, conditions, setup_notes, session_goal, incident)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"#,
+        params![
+            recording_id, notes, laptime, result, driver_impression, tested_parameters, conditions, setup_notes,
+            session_goal, incident
+        ],
+    )?;
+
+    if let Some(ann) = annotations {
+        let mut stmt_ann = tx.prepare(
+            "INSERT INTO annotations (recording_id, time_offset_sec, time_end_sec, text, tag) VALUES (?1, ?2, ?3, ?4, ?5)",
+        )?;
+        for a in ann.iter() {
+            stmt_ann.execute(params![
+                recording_id,
+                a.time_offset_sec,
+                a.time_end_sec,
+                a.text,
+                a.tag,
+            ])?;
+        }
+    }
 
     let mut stmt = tx.prepare(
         r#"
@@ -524,31 +610,7 @@ pub fn export_to_sqlite(
 }
 
 fn format_timestamp() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    let days = secs / 86400;
-    let (y, m, d) = days_to_ymd(days);
-    let h = (secs / 3600) % 24;
-    let min = (secs / 60) % 60;
-    let s = secs % 60;
-    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", y, m, d, h, min, s)
-}
-
-fn days_to_ymd(days: u64) -> (u32, u32, u32) {
-    const EPOCH: i64 = 719163;
-    let j = days as i64 + EPOCH;
-    let a = (4 * j + 3) / 146097;
-    let b = j - (146097 * a) / 4;
-    let c = (4 * b + 3) / 1461;
-    let d = b - (1461 * c) / 4;
-    let e = (5 * d + 2) / 153;
-    let day = (d - (153 * e + 2) / 5) as u32 + 1;
-    let month = ((e + 2) % 12) as u32 + 1;
-    let year = (100 * a + c) as u32;
-    (year, month, day)
+    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
 /// Export graphics records to SQLite. Appends to existing recording.

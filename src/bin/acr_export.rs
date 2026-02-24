@@ -14,6 +14,48 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use acr_recorder::config;
+use acr_recorder::export::sqlite_export::RecordingNotesContent;
+use acr_recorder::notes::RecordingNotesJson;
+
+/// Read <stem>.notes.json and convert to RecordingNotesContent + annotations for SQLite export.
+fn read_notes_json(rkyv_path: &Path) -> Option<(RecordingNotesContent, Vec<acr_recorder::notes::Annotation>)> {
+    let stem = rkyv_path.file_stem()?.to_str()?;
+    let parent = rkyv_path.parent().unwrap_or(Path::new("."));
+    let path = parent.join(format!("{}.notes.json", stem));
+    let json_str = std::fs::read_to_string(&path).ok()?;
+    let j: RecordingNotesJson = serde_json::from_str(&json_str).ok()?;
+    let trim = |s: &str| {
+        let t = s.trim();
+        if t.is_empty() { None } else { Some(t.to_string()) }
+    };
+    let notes = trim(&j.notes);
+    let content = RecordingNotesContent {
+        notes,
+        laptime: j.fields.get("laptime").and_then(|s| trim(s)),
+        result: j.fields.get("result").and_then(|s| trim(s)),
+        driver_impression: j.fields.get("driver_impression").and_then(|s| trim(s)),
+        tested_parameters: j.fields.get("tested_parameters").and_then(|s| trim(s)),
+        conditions: j.fields.get("conditions").and_then(|s| trim(s)),
+        setup_notes: j.fields.get("setup_notes").and_then(|s| trim(s)),
+        session_goal: j.fields.get("session_goal").and_then(|s| trim(s)),
+        incident: j.fields.get("incident").and_then(|s| trim(s)),
+    };
+    let has_any = content.notes.is_some()
+        || content.laptime.is_some()
+        || content.result.is_some()
+        || content.driver_impression.is_some()
+        || content.tested_parameters.is_some()
+        || content.conditions.is_some()
+        || content.setup_notes.is_some()
+        || content.session_goal.is_some()
+        || content.incident.is_some()
+        || !j.annotations.is_empty();
+    if has_any {
+        Some((content, j.annotations))
+    } else {
+        None
+    }
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -200,12 +242,23 @@ fn export_single(
         .unwrap_or("unknown.rkyv");
 
     if do_sqlite {
+        let notes_and_ann = read_notes_json(input);
+        let (notes_content, annotations) = match &notes_and_ann {
+            Some((c, a)) => (Some(c as &RecordingNotesContent), a.as_slice()),
+            None => (None, &[][..]),
+        };
         let rid = acr_recorder::export::sqlite_export::export_to_sqlite(
             sqlite_db,
             source_file,
             &records,
             sample_rate,
             statics.as_ref(),
+            notes_content,
+            if annotations.is_empty() {
+                None
+            } else {
+                Some(annotations)
+            },
         )?;
         eprintln!("Appended to {} (recording_id={})", sqlite_db, rid);
 

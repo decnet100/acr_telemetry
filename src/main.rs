@@ -28,6 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cfg = config::load_config();
     let output_path = output_path(&cfg)?;
+    let notes_dir = config::resolve_path(&cfg.recorder.raw_output_dir);
     let mut stop_path = config::resolve_stop_file_path(&cfg.recorder);
     if stop_path.is_relative() {
         if let Ok(cwd) = std::env::current_dir() {
@@ -37,7 +38,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if stop_path.exists() {
         let _ = std::fs::remove_file(&stop_path);
     }
-    config::write_stop_location_file(&stop_path);
+    acr_recorder::notes::reset_notes_at_start(&notes_dir)?;
+    let start_time = chrono::Utc::now();
     eprintln!("Recording to: {}", output_path.display());
     eprintln!("Ctrl+C to stop, or run acr_stop.bat / create {} to stop from game.", stop_path.display());
 
@@ -54,6 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     const IDLE_THRESHOLD: u32 = 20; // after this many consecutive Nones, use idle_sleep instead of poll_interval
     let mut consecutive_none = 0u32;
     let mut last_print = std::time::Instant::now();
+    let mut last_elapsed_write = std::time::Instant::now();
     let mut last_graphics_capture = std::time::Instant::now();
     let graphics_interval = Duration::from_millis(16); // ~60 Hz
 
@@ -70,6 +73,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 last_graphics_capture = std::time::Instant::now();
             }
 
+            // Write elapsed secs for batch scripts (e.g. acr_note_good.bat) about once per second
+            if last_elapsed_write.elapsed() >= Duration::from_secs(1) {
+                let _ = acr_recorder::notes::write_elapsed_secs(&notes_dir, recorder.elapsed().as_secs());
+                last_elapsed_write = std::time::Instant::now();
+            }
             // Progress every 5 seconds
             if last_print.elapsed() >= Duration::from_secs(5) {
                 let elapsed = recorder.elapsed().as_secs_f64();
@@ -95,6 +103,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     recorder.flush()?;
+    let end_time = chrono::Utc::now();
+    if let Err(e) = acr_recorder::notes::save_notes_to_json(
+        &output_path,
+        &notes_dir,
+        &start_time.to_rfc3339(),
+        &end_time.to_rfc3339(),
+    ) {
+        eprintln!("Note: could not save notes JSON: {}", e);
+    }
     eprintln!(
         "Done. Recorded {} samples in {:.1}s",
         recorder.sample_count(),
