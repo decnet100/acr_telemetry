@@ -1,11 +1,11 @@
 # Build
 /target
 **/target
-*.exe
 
+/acr_telemetry_bridge_0.1-bin/
 # User config (paths)
 acr_recorder.toml
-
+/target/
 # Recordings & user data
 /telemetry_raw/
 telemetry.db
