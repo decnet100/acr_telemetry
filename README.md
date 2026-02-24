@@ -32,8 +32,8 @@ Telemetry recording and analysis for **Assetto Corsa Competizione (ACC)** and **
 6. **Dashboard**: See `grafanimate/DASHBOARD_SETUP.md` for Grafana setup.
 
 ## Documentation
-
-- **[acr_receiver/README.md](acr_receiver/README.md)** – Bridge web dashboard
+- **[docs/FIELDS.md](docs/FIELDS.md)** – Available telemetry fields (data variables) with small description of what they do.
+- **[docs/BRIDGE.md](docs/BRIDGE.md)** – Bridge web dashboard readme.
 - **[grafana/DASHBOARD_SETUP.md](grafana/DASHBOARD_SETUP.md)** – Grafana installation and dashboard setup
 - **[vendor/acc_shared_memory_rs/](vendor/acc_shared_memory_rs/)** – ACC shared memory library
 
