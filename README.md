@@ -57,9 +57,9 @@ The **acr_telemetry_bridge** is a separate program for **live** telemetry: it re
 
 ## Recording notes (voice / manual)
 
-You can attach a short description to each recording (e.g. “comparison of ABS levels”, “test run aborted”) so you can tell them apart later in Grafana or in the SQLite DB.
+You can attach a short description to each recording (e.g. “comparison of ABS levels”, “test run aborted”) so you can tell them apart later in Grafana or in the SQLite DB. For example, anything that will be entered as text into  `%APPDATA%\acr_telemetry\acr_note` will be saved as part of the dataset when the acr_recorder finishes.
 
-- **Manual**: Edit the SQLite database (e.g. with [DB Browser for SQLite](https://sqlitebrowser.org/)). The **`recording_notes`** table has one row per recording (`recording_id`) with TEXT fields you can fill: `notes`, `laptime`, `result`, `driver_impression`, `tested_parameters`, `conditions`, `setup_notes`, `session_goal`, `incident`. All are optional and default to empty.
+
 
 - **Voice / external tool**: To avoid switching away from the game (handy in VR or when the game is slow to alt-tab), an external tool can write notes into a file that the recorder reads when you stop.
 
@@ -68,8 +68,9 @@ You can attach a short description to each recording (e.g. “comparison of ABS 
   **When**: Your tool should append lines to `acr_notes` whenever the user speaks a note (e.g. “telemetry note, comparison of abs level efficiency”) or a stop reason (e.g. “telemetry stop, test run aborted, crash”). Including a timestamp in each line is recommended.
 
   **On stop**: The recorder reads `acr_notes` and any `acr_<field>` from the notes directory, writes a single **`<stem>.notes.json`** (notes, fields, and parsed annotations from `#marker` lines) **next to the `.rkyv`** (in the raw output directory), then removes the source files from the notes directory. During recording it writes `acr_elapsed_secs` (current recording time in seconds) there so batch scripts can add elapsed time to markers.
+  - **Manual**: Edit the SQLite database (e.g. with [DB Browser for SQLite](https://sqlitebrowser.org/)). The **`recording_notes`** table has one row per recording (`recording_id`) with TEXT fields you can fill: `notes`, `laptime`, `result`, `driver_impression`, `tested_parameters`, `conditions`, `setup_notes`, `session_goal`, `incident`. All are optional and default to empty.
 
-  **Batch helpers** (in `batch/`): They write into the notes directory (default `%APPDATA%\acr_telemetry`). `acr_stop.bat` only creates `acr_stop`. `acr_marker_good.bat` appends a marker and does not stop; `acr_marker_bad.bat` appends a “bad” marker; `acr_note_aborted.bat` appends then stops. These can be run from anywhere (e.g. bound to game controller). 
+  **Batch helpers** (in `batch/`): They write into the notes directory (default `%APPDATA%\acr_telemetry`). `acr_stop.bat` only creates `acr_stop`. `acr_marker_good.bat` appends a marker "good" to this timestamp and does not stop; `acr_marker_bad.bat` appends a “bad” marker; `acr_note_aborted.bat` appends then stops. These can be run from anywhere (e.g. bound to game controller) and appear in the grafana visualisation as vertical lines.
 
   **Export**: `acr_export ... --sqlite` reads each recording’s **`<stem>.notes.json`** (written by the recorder on stop) and fills the `recording_notes` and `annotations` tables.
 
