@@ -59,7 +59,7 @@ This folder `%APPDATA%\acr_telemetry` will serve as the location for temporary n
 
 
 
-- **Suggestion: Voice / external tool while recording**: To avoid switching away from the game (handy in VR or when the game is slow to alt-tab), an external tool can write notes into a file that the recorder reads when you stop. Similarly, you ca
+- **Suggestion: Voice / external tool while recording**: To avoid switching away from the game (handy in VR or when the game is slow to alt-tab), an external tool - such as voice-to-text software - can write notes into a file that the recorder reads when you stop. 
 
   **Stop vs notes**: The stop signal is the existance of the file file `acr_stop`; notes are in `acr_notes` and `acr_<field>`. These files live in the **notes directory** (default `%APPDATA%\acr_telemetry` on Windows, `~/.config/acr_telemetry` on Linux). Configure via **notes_dir** in `acr_recorder.toml` if needed. You can append to `acr_notes` during a run; the recorder only stops when `acr_stop` appears. On start the recorder resets `acr_notes`, `acr_elapsed_secs`, and `acr_<field>` in that directory.
 
