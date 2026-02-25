@@ -11,7 +11,6 @@ Telemetry recording and analysis for **Assetto Corsa Competizione (ACC)** and **
 |------|----------|
 | **src/** | Rust source (acr_recorder, acr_export, acr_telemetry_bridge) |
 | **config-examples/** | Example TOML configs: `acr_recorder.toml`, `acr_telemetry_bridge.toml`, `telemetry_color.toml` – copy to CWD or `bin/` as needed. |
-| **bin/** | Optional: symlinks to `target/release/*.exe` and config files so you can run all tools from one folder (see below). |
 | **batch/** | Helper scripts: `acr_stop.bat`, `acr_marker_good.bat`, `acr_marker_bad.bat`, `acr_note_aborted.bat` – write into the notes directory and/or signal stop. |
 | **acr_receiver/** | Web dashboard for live telemetry on phone/second device |
 | **vendor/** | acc_shared_memory_rs (ACC shared memory) |
