@@ -15,7 +15,7 @@ Fields which are known to be filled with useful data in AC Rally 0.2 are marked 
 | `packet_id` | *Packet ID (increments per update) |
 | `gas` | *Throttle pedal (0–1) |
 | `brake` | *Brake pedal (0–1) |
-| `clutch` | *Clutch pedal (0–1) |
+| `clutch` | *Clutch pedal (0–1) - 1 is clutch not pressed! |
 | `steer_angle` | *Steering angle (°) |
 | `gear` | *Gear (0=neutral, 1–7) |
 | `rpm` | *Engine RPM |
@@ -64,19 +64,19 @@ Fields which are known to be filled with useful data in AC Rally 0.2 are marked 
 
 | Base | Description |
 |------|-------------|
-| `wheel_slip` | *Wheel slip |
-| `wheel_load` | *Wheel load |
+| `wheel_slip` | *Wheel slip - overall slip ("traction loss"), 0-90? |
+| `wheel_load` | *Wheel load - Newton? |
 | `wheel_pressure` | *Tyre pressure (psi) |
 | `wheel_angular_speed` | *Angular speed (rad/s) |
-| `tyre_core_temp` | *Tyre core temperature |
-| `brake_temp` | *Brake temperature |
+| `tyre_core_temp` | *Tyre core temperature (Kelvin) |
+| `brake_temp` | *Brake temperature (Kelvin) |
 | `tyre_wear` | Tyre wear |
 | `tyre_dirty_level` | Tyre dirt level |
-| `camber_rad` | Camber (rad) |
+| `camber_rad` | Camber (rad) - currently unused |
 | `suspension_travel` | *Suspension travel (mm) |
-| `brake_pressure` | Brake pressure (bar) |
-| `slip_ratio` | Slip ratio |
-| `slip_angle` | Slip angle (°) |
+| `brake_pressure` | Brake pressure (bar) - currently unused |
+| `slip_ratio` | Slip ratio - longitinal slip, negative and positive; possibly rad |
+| `slip_angle` | Slip angle - lateral slip, negative and positive; possibly rad |
 | `pad_life` | Pad life (%) |
 | `disc_life` | Disc life (%) |
 | `tyre_temp_i`, `tyre_temp_m`, `tyre_temp_o` | Tyre temp inner/middle/outer |
@@ -99,3 +99,7 @@ Examples: `tyre_core_temp_fl`, `brake_temp_rr`, `slip_angle_fr`, etc.
 | `brake_fr` | `brake_temp_fr` |
 | `brake_rl` | `brake_temp_rl` |
 | `brake_rr` | `brake_temp_rr` |
+
+
+
+
