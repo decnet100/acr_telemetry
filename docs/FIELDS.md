@@ -29,7 +29,7 @@ All Temperatures are given as Kelvin by the game, any reference to °C is a late
 | `brake` | *Brake pedal (0–1) | yes | 0 … 1, 1= brake pressed |
 | `clutch` | *Clutch pedal (0–1) | yes | 0 … 1, 1= clutch NOT pressed |
 | `steer_angle` | *Steering angle (normalized −1…1) | yes | −1 … 1, 1 = full right |
-| `gear` | *Gear (0=neutral, 1–7) | yes | 1–7 (1=neutral) |
+| `gear` | *Gear (1–7) | yes | 1–7 (1=neutral) |
 | `rpm` | *Engine RPM | yes | 0 … 8500 |
 | `autoshifter_on` | Autoshifter enabled | no | constant (no data) |
 | `ignition_on` | *Ignition on | no | constant 1 (when on) |
