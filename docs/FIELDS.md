@@ -24,13 +24,13 @@ All Temperatures are given as Kelvin by the game, any reference to °C is a late
 
 | Field | Description | Variable | Range in own recorded data |
 |-------|-------------|----------|-------|
-| `packet_id` | *Packet ID (increments per update) | yes | 1 … ∞ |
-| `gas` | *Throttle pedal (0–1) | yes | ~0.001 … 1 |
-| `brake` | *Brake pedal (0–1) | yes | ~0.005 … 1 |
-| `clutch` | *Clutch pedal (0–1) | yes | ~0.001 … 1 |
-| `steer_angle` | *Steering angle (normalized −1…1) | yes | −1 … 1 |
+| `packet_id` | *Packet ID (increments per update) | yes | 1 … infinity |
+| `gas` | *Throttle pedal (0–1) | yes | 0 … 1, 1= throttle pressed |
+| `brake` | *Brake pedal (0–1) | yes | 0 … 1, 1= brake pressed |
+| `clutch` | *Clutch pedal (0–1) | yes | 0 … 1, 1= clutch NOT pressed |
+| `steer_angle` | *Steering angle (normalized −1…1) | yes | −1 … 1, 1 = full right |
 | `gear` | *Gear (0=neutral, 1–7) | yes | 1–7 (1=neutral) |
-| `rpm` | *Engine RPM | yes | ~−2600 … 8500 |
+| `rpm` | *Engine RPM | yes | 0 … 8500 |
 | `autoshifter_on` | Autoshifter enabled | no | constant (no data) |
 | `ignition_on` | *Ignition on | no | constant 1 (when on) |
 | `starter_engine_on` | Starter engaged | no | constant 1 (when engaged) |
@@ -38,13 +38,13 @@ All Temperatures are given as Kelvin by the game, any reference to °C is a late
 | `speed_kmh` | *Speed (km/h) | yes | ~0 … 200 |
 | `velocity_x`, `velocity_y`, `velocity_z` | *Velocity vector (world) | yes | ~−54 … 51 |
 | `local_velocity_x/y/z` | Velocity vector (local) | yes | ~−25 … 54 |
-| `g_force_x`, `g_force_y`, `g_force_z` | G-forces (sim-specific units) | yes | highly variable |
+| `g_force_x`, `g_force_y`, `g_force_z` | G-forces (g=9.81m/s²) | yes | usually -1.x g ... 1.x g; g_force_x: lateral, negative = right turn; g_force_y: up/down; z: longitudinal, negative=braking  |
 | `heading`, `pitch`, `roll` | *Orientation (rad) | yes | heading/roll: −π … π, pitch: ~−−π/2 … π/2|
-| `final_ff` | Force feedback | yes | ~−3.2 … 2.4 |
-| `fuel` | *Fuel (L) | yes | 30 … 46 (when tank has fuel) |
-| `water_temp` | *Water/coolant temperature (K→°C) | yes | ~96 … 351 K (up to ~78°C) |
+| `final_ff` | Force feedback value(?) | yes | ~−3.2 … 2.4 |
+| `fuel` | *?Fuel (L) | yes | 30 … 46 (when tank has fuel) - no fuel consumption modelled |
+| `water_temp` | *Water/coolant temperature (K→°C) | yes | ~96 … 351 K (up to ~78°C); starting out impossibly low |
 | `road_temp` | *Track surface temperature (K→°C) | no | constant 304 K (31°C) |
-| `air_temp` | *Air temperature | yes | ~269 … 297 K (~−4 … 24°C) - matching in-game temperatures |
+| `air_temp` | *Air temperature | yes | ~269 … 297 K (~−4 … 24°C) - matching in-game weather forecast |
 | `tc` | *Traction control (0=off, 1=on) | no | 1 when active |
 | `abs` | *ABS (level) | no | 1 when active |
 | `brake_bias` | *Brake bias (front) | yes | 0.5 … ~0.67 |
