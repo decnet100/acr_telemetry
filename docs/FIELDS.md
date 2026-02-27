@@ -89,10 +89,10 @@ All Temperatures are given as Kelvin by the game, any reference to °C is a late
 | `brake_pressure` | Brake pressure (bar) | no | usually off, but I once got data there??? ~0.001 … 0.58 front, ~0.0006 … 0.30 rear |
 | `slip_ratio` | Slip ratio, longitudinal slip (=wheel speed/vehicle speed?)  | yes | ~−10 … 24 |
 | `slip_angle` | Slip angle, lateral slip | yes | ~−1.5 … 1.5 rad |
-| `pad_life` | Pad life (%) | yes | ~0.000016 … 0.000018 (negligible variation) |
-| `disc_life` | Disc life (%) | yes | ~0.00001 … 0.000032 (negligible variation) |
+| `pad_life` | Pad life (%) | yes | ~0.000016 … 0.000018 (negligible variation, probably per car) |
+| `disc_life` | Disc life (%) | yes | ~0.00001 … 0.000032 (negligible variation, probably per car) |
 | `tyre_temp_i`, `tyre_temp_m`, `tyre_temp_o` | Tyre temp inner/middle/outer | no | constant (no data) |
-| `mz`, `fz`, `my` | *Tyre moments/forces | yes | mz: ~−1500 … 1250; fz: ~−16 700 … 16 400; my: ~−18 600 … 18 500 |
+| `mz`, `fz`, `my` | *Tyre moments/forces (probably: mz = roll moment, fz= longitudinal force, my: yaw moment) | yes | mz: ~−1500 … 1250; fz: ~−16 700 … 16 400; my: ~−18 600 … 18 500 |
 | `suspension_damage` | Suspension damage | no | constant (no data) |
 
 Examples: `tyre_core_temp_fl`, `brake_temp_rr`, `slip_angle_fr`, etc.
