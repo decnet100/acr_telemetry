@@ -81,6 +81,7 @@ Content is stored only as plain text (no execution or interpretation). Safe to u
 - **[docs/BRIDGE.md](docs/BRIDGE.md)** – Bridge web dashboard readme.
 - **[grafana/DASHBOARD_SETUP.md](grafana/DASHBOARD_SETUP.md)** – Grafana installation and dashboard setup.
 - **[grafana/ANNOTATIONS.md](grafana/ANNOTATIONS.md)** – Using recording markers as Grafana annotations.
+- **[grafana/ANALYSIS_RANGES.md](grafana/ANALYSIS_RANGES.md)** – Analysis segments from Grafana annotations (`acr_analysis_export`).
 - **[vendor/acc_shared_memory_rs/](vendor/acc_shared_memory_rs/)** – ACC shared memory library.
 
 ## License

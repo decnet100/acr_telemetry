@@ -4,12 +4,15 @@
 
 /acr_telemetry_bridge_0.1-bin/
 # User config (paths)
-acr_recorder.toml
+
 /target/
 # Recordings & user data
 /telemetry_raw/
 telemetry.db
+analysis.db
+telemetry*.db
 telemetry.db.bak
+analysis.db.bak
 /grafanimate/
 *.rkyv
 acc_physics_*.csv
@@ -24,10 +27,17 @@ acc_physics_*.noquote.csv
 acr_telemetry_0.1-bin/
 acr-bin/
 
+# bin/ = symlinks to target/release (create with setup_bin_links.bat)
+/bin/acr_export.exe
+/bin/acr_recorder.exe
+/bin/acr_recorder.toml.example
+/bin/acr_telemetry_bridge.exe
+/bin/acr_telemetry_bridge.toml
+
 # Local archives
 /archive/
 /v0.1/
 acr_recorder.exe.01
 acr_telemetry_bridge_0.1-bin/acr_telemetry_bridge.toml
 acr_telemetry_bridge_0.1-bin/telemetry_color.toml
-bin/telemetry_color.toml
+
