@@ -13,32 +13,34 @@ The `/config` API also returns this list as `available_fields`.
 ## Global Fields
 
 Fields which are known to be filled with useful data in AC Rally 0.2 are marked with *. Dubious fields are labelled *?, reason for doubt given after name and description.
+Please note that all coordinates use "Y-UP" formatting. For car-referenced data x: lateral (left-right) axis, y: height (up-down) axis, z: longitudinal (front-back) axis.
+All Temperatures are given as Kelvin by the game, any reference to °C is a later conversion.
 
-| Field | Description | Variable | Range |
+| Field | Description | Variable | Range in own recorded data |
 |-------|-------------|----------|-------|
-| `packet_id` | *Packet ID (increments per update) | yes | 1 … ∞ |
-| `gas` | *Throttle pedal (0–1) | yes | ~0.001 … 1 |
-| `brake` | *Brake pedal (0–1) | yes | ~0.005 … 1 |
-| `clutch` | *Clutch pedal (0–1) | yes | ~0.001 … 1 |
-| `steer_angle` | *Steering angle (normalized −1…1) | yes | −1 … 1 |
-| `gear` | *Gear (0=neutral, 1–7) | yes | 1–7 (when driving) |
-| `rpm` | *Engine RPM | yes | ~−2600 … 8500 |
+| `packet_id` | *Packet ID (increments per update) | yes | 1 … infinity |
+| `gas` | *Throttle pedal (0–1) | yes | 0 … 1, 1= throttle pressed |
+| `brake` | *Brake pedal (0–1) | yes | 0 … 1, 1= brake pressed |
+| `clutch` | *Clutch pedal (0–1) | yes | 0 … 1, 1= clutch NOT pressed |
+| `steer_angle` | *Steering angle (normalized −1…1) | yes | −1 … 1, 1 = full right |
+| `gear` | *Gear (1–7) | yes | 1–7 (1=neutral) |
+| `rpm` | *Engine RPM | yes | 0 … 8500 |
 | `autoshifter_on` | Autoshifter enabled | no | constant (no data) |
 | `ignition_on` | *Ignition on | no | constant 1 (when on) |
 | `starter_engine_on` | Starter engaged | no | constant 1 (when engaged) |
 | `is_engine_running` | Engine running | no | constant 1 (when running) |
-| `speed_kmh` | *Speed (km/h) | yes | ~0 … 195 |
+| `speed_kmh` | *Speed (km/h) | yes | ~0 … 200 |
 | `velocity_x`, `velocity_y`, `velocity_z` | *Velocity vector (world) | yes | ~−54 … 51 |
 | `local_velocity_x/y/z` | Velocity vector (local) | yes | ~−25 … 54 |
-| `g_force_x`, `g_force_y`, `g_force_z` | G-forces (sim-specific units) | yes | highly variable |
-| `heading`, `pitch`, `roll` | *Orientation (rad) | yes | heading/roll: −π … π, pitch: ~−1.23 … 1.0 |
-| `final_ff` | Force feedback | yes | ~−3.2 … 2.4 |
-| `fuel` | *Fuel (L) | yes | 30 … 46 (when tank has fuel) |
-| `water_temp` | *Water/coolant temperature (K→°C) | yes | ~96 … 351 K (up to ~78°C) |
+| `g_force_x`, `g_force_y`, `g_force_z` | G-forces (g=9.81m/s²) | yes | usually -1.x g ... 1.x g; g_force_x: lateral, negative = right turn; g_force_y: up/down; z: longitudinal, negative=braking  |
+| `heading`, `pitch`, `roll` | *Orientation (rad) | yes | heading/roll: −π … π, pitch: ~−−π/2 … π/2|
+| `final_ff` | Force feedback value(?) | yes | ~−3.2 … 2.4 |
+| `fuel` | *?Fuel (L) | yes | 30 … 46 (when tank has fuel) - no fuel consumption modelled |
+| `water_temp` | *Water/coolant temperature (K→°C) | yes | ~96 … 351 K (up to ~78°C); starting out impossibly low |
 | `road_temp` | *Track surface temperature (K→°C) | no | constant 304 K (31°C) |
-| `air_temp` | *Air temperature (K→°C) | yes | ~269 … 297 K (~−4 … 24°C) |
-| `tc` | *Traction control (0=off, 1=on) | no | constant 1 (when on) |
-| `abs` | *ABS (level) | no | constant 1 (when on) |
+| `air_temp` | *Air temperature | yes | ~269 … 297 K (~−4 … 24°C) - matching in-game weather forecast |
+| `tc` | *Traction control (0=off, 1=on) | no | 1 when active |
+| `abs` | *ABS (level) | no | 1 when active |
 | `brake_bias` | *Brake bias (front) | yes | 0.5 … ~0.67 |
 | `turbo_boost` | Turbo boost (bar) | no | constant (no data) |
 | `pit_limiter_on` | Pit limiter active | no | constant (no data) |
@@ -56,7 +58,7 @@ Fields which are known to be filled with useful data in AC Rally 0.2 are marked 
 | `performance_meter` | Performance meter | no | constant (no data) |
 | `engine_brake` | Engine brake | no | constant (no data) |
 | `ers_recovery_level`, `ers_power_level` | ERS | no | constant (no data) |
-| `current_max_rpm` | Current max RPM | yes | 7250 … 8500 |
+| `current_max_rpm` | Current max RPM | yes | 7250 … 8500 - constant for each car model |
 | `drs_available`, `drs_enabled` | DRS available/active | no | constant (no data) |
 | `p2p_activation`, `p2p_status` | Push-to-Pass | no | constant (no data) |
 | `front_brake_compound`, `rear_brake_compound` | Brake compound index | no | constant (no data) |
@@ -68,7 +70,7 @@ Fields which are known to be filled with useful data in AC Rally 0.2 are marked 
 
 | Base | Description | Variable | Range |
 |------|-------------|----------|-------|
-| `wheel_slip` | *Wheel slip | yes | ~0 … 127 |
+| `wheel_slip` | *Wheel slip (total slip both lateral/longitudinal, as deg°) | yes | ~0 … 90 |
 | `wheel_load` | *Wheel load | yes | ~0 … 44 700 N |
 | `wheel_pressure` | *Tyre pressure (psi) | yes | ~10 … 40 psi |
 | `wheel_angular_speed` | *Angular speed (rad/s) | yes | ~−162 … 240 rad/s |
@@ -77,14 +79,14 @@ Fields which are known to be filled with useful data in AC Rally 0.2 are marked 
 | `tyre_wear` | Tyre wear | no | constant (no data) |
 | `tyre_dirty_level` | Tyre dirt level | no | constant (no data) |
 | `camber_rad` | Camber (rad) | no | constant (no data) |
-| `suspension_travel` | *Suspension travel (DB: m) | yes | ~−0.04 … 0.24 m (≈ −40 … 240 mm) |
-| `brake_pressure` | Brake pressure (bar) | yes | ~0.001 … 0.58 front, ~0.0006 … 0.30 rear |
-| `slip_ratio` | Slip ratio | yes | ~−10 … 24 |
-| `slip_angle` | Slip angle (rad) | yes | ~−1.5 … 1.5 rad |
-| `pad_life` | Pad life (%) | yes | ~0.000016 … 0.000018 (negligible variation) |
-| `disc_life` | Disc life (%) | yes | ~0.00001 … 0.000032 (negligible variation) |
+| `suspension_travel` | *Suspension travel | yes | ~−0.04 … 0.24 m (≈ −40 … 240 mm) |
+| `brake_pressure` | Brake pressure (bar) | no | usually off, but I once got data there??? ~0.001 … 0.58 front, ~0.0006 … 0.30 rear |
+| `slip_ratio` | Slip ratio, longitudinal slip (=wheel speed/vehicle speed?)  | yes | ~−10 … 24 |
+| `slip_angle` | Slip angle, lateral slip | yes | ~−1.5 … 1.5 rad |
+| `pad_life` | Pad life (%) | yes | ~0.000016 … 0.000018 (negligible variation, probably per car) |
+| `disc_life` | Disc life (%) | yes | ~0.00001 … 0.000032 (negligible variation, probably per car) |
 | `tyre_temp_i`, `tyre_temp_m`, `tyre_temp_o` | Tyre temp inner/middle/outer | no | constant (no data) |
-| `mz`, `fz`, `my` | *Tyre moments/forces | yes | mz: ~−1500 … 1250; fz: ~−16 700 … 16 400; my: ~−18 600 … 18 500 |
+| `mz`, `fz`, `my` | *Tyre moments/forces (probably: mz = roll moment, fz= longitudinal force, my: yaw moment) | yes | mz: ~−1500 … 1250; fz: ~−16 700 … 16 400; my: ~−18 600 … 18 500 |
 | `suspension_damage` | Suspension damage | no | constant (no data) |
 
 Examples: `tyre_core_temp_fl`, `brake_temp_rr`, `slip_angle_fr`, etc.
