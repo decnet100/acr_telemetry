@@ -24,6 +24,15 @@ Web dashboard for monitoring ACC/AC Rally temperatures and telemetry on a second
 
 3. The dashboard auto-refreshes and shows configurable fields (speed, temps, fuel, etc.). Configure fields and coloring in **`acr_telemetry_bridge.toml`** (all in one file).
 
+## Recording Status Indicator
+
+The dashboard displays a **red indicator light** in the top-right corner that shows when `acr_recorder` is actively recording:
+
+- **Red pulsing light + "Recording"**: The recorder is currently running and writing telemetry data
+- **Gray light + "Recorder: Inactive"**: No active recording session
+
+The bridge automatically detects the recorder status by monitoring the `acr_elapsed_secs` file in the notes directory (default: `%APPDATA%\acr_telemetry` on Windows, `~/.config/acr_telemetry` on Linux). This file is updated every second while the recorder is running.
+
 ## Configuration
 
 **`acr_telemetry_bridge.toml`** – bridge options and optional dashboard colors:
@@ -58,6 +67,36 @@ Or in a separate **`telemetry_color.toml`** (same directory or `~/.config/acr_re
 | `--udp HOST:PORT` | Send JSON over UDP |
 | `--unit c\|f\|k` | Temperature unit |
 
+
+### Performance Considerations
+
+The bridge is designed to minimize impact on game performance:
+
+- **Low polling rate**: Default 5 Hz (configurable via `--rate`) is sufficient for monitoring and much lower than the recorder's 333 Hz
+- **Reduced thread priority**: On Windows, the bridge automatically runs at below-normal priority to avoid interfering with game rendering
+- **Cached status checks**: Recorder status is only checked every 2 seconds (not on every telemetry update) to minimize filesystem overhead
+- **Separate process**: The bridge runs independently from the recorder
+
+**If you experience micro-stutters (0.2s freezes):**
+
+1. **Lower the update rate**: Try `--rate 2` or `--rate 1` instead of the default 5 Hz
+   ```bash
+   acr_telemetry_bridge --http 0.0.0.0:8080 --rate 1
+   ```
+2. **Disable when not needed**: Only run the bridge when you actually need live monitoring. The recorder works independently.
+3. **Check system load**: The bridge uses minimal CPU (~0.1-0.5%), but combined with:
+   - The recorder (333 Hz physics polling)
+   - The game (rendering + physics)
+   - Other background processes
+   
+   ...older systems or high-load scenarios may experience contention for shared memory access.
+4. **Use UDP instead of HTTP**: If you're using a custom receiver, UDP mode (`--udp`) has lower overhead than the HTTP server (no web server thread needed)
+5. **Monitor CPU affinity**: Consider running the bridge on a different CPU core than the game (use Task Manager > Details > Set Affinity)
+
+**Technical details:**
+- The bridge runs at **below-normal thread priority** (Windows) to yield to the game
+- Recorder status checks happen only every 2 seconds (not on every telemetry update)
+- Shared memory reads are non-blocking and use duplicate detection to skip unchanged data
 
 ### Troubleshooting:
 

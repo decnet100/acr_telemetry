@@ -9,9 +9,10 @@
 //! CLI options override config.
 
 use std::net::{SocketAddr, UdpSocket};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use acc_shared_memory_rs::datatypes::Wheels;
 use acc_shared_memory_rs::maps::PhysicsMap;
@@ -23,6 +24,27 @@ use serde_json::{Map, Number, Value};
 use tiny_http::{Response, Server};
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
+
+/// Check if acr_recorder is currently running by checking if acr_elapsed_secs exists and was modified recently.
+/// This function is intentionally cheap - only checks file modification time, no reads.
+fn is_recorder_active(notes_dir: &PathBuf) -> bool {
+    let elapsed_file = notes_dir.join("acr_elapsed_secs");
+    
+    // Fast path: if file doesn't exist, recorder is not running
+    // Using metadata() is relatively fast as it only queries file system metadata, not file contents
+    match std::fs::metadata(&elapsed_file) {
+        Ok(metadata) => {
+            // Check if file was modified within the last 3 seconds (recorder updates it every ~1s)
+            if let Ok(modified) = metadata.modified() {
+                if let Ok(elapsed) = SystemTime::now().duration_since(modified) {
+                    return elapsed.as_secs() < 3;
+                }
+            }
+            false
+        }
+        Err(_) => false,
+    }
+}
 
 fn wheel_values<F>(physics: &PhysicsMap, get: F, temp_unit: &str, is_temp: bool) -> [(&'static str, f32); 4]
 where
@@ -70,6 +92,7 @@ fn b(v: bool) -> Value {
 fn build_payload(
     physics: &acc_shared_memory_rs::maps::PhysicsMap,
     temp_unit: &str,
+    recorder_active: bool,
 ) -> Value {
     let k = |v: f32| k_to_unit(v, temp_unit);
     let unit = normalize_temp_unit(temp_unit);
@@ -77,6 +100,7 @@ fn build_payload(
     let mut m = Map::new();
     m.insert("packet_id".into(), i(physics.packet_id));
     m.insert("temperature_unit".into(), Value::String(unit));
+    m.insert("recorder_active".into(), b(recorder_active));
 
     // Driver inputs
     m.insert("gas".into(), f(physics.gas));
@@ -433,6 +457,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (t.clone(), sock)
     });
 
+    let cfg = config::load_config();
+    let notes_dir = config::resolve_notes_dir(&cfg.recorder);
     let state: Arc<RwLock<Option<Value>>> = Arc::new(RwLock::new(None));
 
     if let Some(ref addr) = http_addr {
@@ -481,6 +507,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::thread::spawn(move || run_http_server(&addr_clone, state_clone, dashboard_config));
     }
 
+    // Lower thread priority to minimize impact on game performance
+    #[cfg(windows)]
+    {
+        unsafe {
+            // THREAD_PRIORITY_BELOW_NORMAL = -1
+            // This ensures the bridge doesn't interfere with game rendering
+            winapi::um::processthreadsapi::SetThreadPriority(
+                winapi::um::processthreadsapi::GetCurrentThread(),
+                -1,
+            );
+        }
+    }
+
     let mut acc = ACCSharedMemory::new()?;
 
     let unit_label = match temp_unit.to_lowercase().as_str() {
@@ -493,10 +532,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         rate_hz, unit_label
     );
 
+    // Cache recorder status to avoid filesystem checks on every iteration
+    let mut recorder_active_cached = false;
+    let mut last_recorder_check = std::time::Instant::now();
+    let recorder_check_interval = Duration::from_secs(2); // Check every 2 seconds instead of every iteration
+
     while RUNNING.load(Ordering::Relaxed) {
         match acc.read_shared_memory() {
             Ok(Some(data)) => {
-                let payload = build_payload(&data.physics, &temp_unit);
+                // Only check recorder status every 2 seconds to minimize filesystem overhead
+                if last_recorder_check.elapsed() >= recorder_check_interval {
+                    recorder_active_cached = is_recorder_active(&notes_dir);
+                    last_recorder_check = std::time::Instant::now();
+                }
+                
+                let payload = build_payload(&data.physics, &temp_unit, recorder_active_cached);
 
                 if let Some((ref target, ref sock)) = udp_socket {
                     let buf = serde_json::to_vec(&payload).unwrap_or_default();

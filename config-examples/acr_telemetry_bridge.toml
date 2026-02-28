@@ -1,7 +1,10 @@
 # acr_telemetry_bridge configuration
 # Paths: ./acr_telemetry_bridge.toml 
 
+# Update rate in Hz (1-10 recommended, lower = less CPU/memory overhead)
+# If you experience micro-stutters in the game, try rate_hz = 1 or 2
 rate_hz = 5
+
 http_addr = "0.0.0.0:9000"
 # udp_target = "192.168.1.255:9000"  # optional: broadcast UDP
 temperature_unit = "c"

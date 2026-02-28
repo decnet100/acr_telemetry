@@ -7,7 +7,12 @@
   <style>
     * { box-sizing: border-box; }
     body { font-family: system-ui,sans-serif; background: #0d0d0d; color: #e6e6e6; margin: 0; padding: 1rem; }
-    h1 { font-size: 1.25rem; margin: 0 0 1rem; color: #aaa; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    h1 { font-size: 1.25rem; margin: 0; color: #aaa; }
+    .recorder-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+    .recorder-indicator { width: 12px; height: 12px; border-radius: 50%; background: #333; transition: background 0.3s; }
+    .recorder-indicator.active { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
     .card { background: #1a1a1a; border-radius: 8px; padding: 1rem; text-align: center; }
     .card .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
@@ -16,7 +21,13 @@
   </style>
 </head>
 <body>
-  <h1>ACR Telemetry</h1>
+  <div class="header">
+    <h1>ACR Telemetry</h1>
+    <div class="recorder-status">
+      <div class="recorder-indicator" id="recorder-indicator"></div>
+      <span id="recorder-text">Recorder: Inactive</span>
+    </div>
+  </div>
   <div id="slots" class="grid"></div>
   <div class="status" id="status">Loading config...</div>
   <script>
@@ -108,6 +119,22 @@
         const level = levelForValue(s.field, Number.isFinite(numVal) ? numVal : null);
         valEl.style.color = colorForLevel(level);
       });
+      
+      // Update recorder status indicator
+      const recorderActive = d && d.recorder_active === true;
+      const indicator = document.getElementById('recorder-indicator');
+      const text = document.getElementById('recorder-text');
+      if (indicator && text) {
+        if (recorderActive) {
+          indicator.classList.add('active');
+          text.textContent = 'Recording';
+          text.style.color = '#ef4444';
+        } else {
+          indicator.classList.remove('active');
+          text.textContent = 'Recorder: Inactive';
+          text.style.color = '#888';
+        }
+      }
     }
     async function loadConfig() {
       try {
