@@ -8,11 +8,8 @@
 /target/
 # Recordings & user data
 /telemetry_raw/
-telemetry.db
-analysis.db
-telemetry*.db
-telemetry.db.bak
-analysis.db.bak
+*.db
+*.db.bak
 /grafanimate/
 *.rkyv
 acc_physics_*.csv
@@ -41,3 +38,6 @@ acr_recorder.exe.01
 acr_telemetry_bridge_0.1-bin/acr_telemetry_bridge.toml
 acr_telemetry_bridge_0.1-bin/telemetry_color.toml
 
+grafana/aktuelles_auswahldash.json
+grafana/Performance variables-1772042665778.json
+grafana/unfinished_Performance-dashboard.json
