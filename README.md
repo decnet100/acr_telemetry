@@ -77,6 +77,7 @@ This folder `%APPDATA%\acr_telemetry` will serve as the location for temporary n
 ## Documentation
 - **[docs/EXPORT.md](docs/EXPORT.md)** – acr_export: options, batch mode, CSV vs SQLite, sidecars.
 - **[docs/FIELDS.md](docs/FIELDS.md)** – Available telemetry fields (data variables) with short descriptions.
+- **[docs/GRAPHICS_AND_STATISTICS.md](docs/GRAPHICS_AND_STATISTICS.md)** – Details about graphics/statistics outputs (at 0.3: very minimal content).
 - **[docs/BRIDGE.md](docs/BRIDGE.md)** – Bridge web dashboard readme.
 - **[grafana/DASHBOARD_SETUP.md](grafana/DASHBOARD_SETUP.md)** – Grafana installation and dashboard setup.
 - **[grafana/ANNOTATIONS.md](grafana/ANNOTATIONS.md)** – Using recording markers as Grafana annotations.
