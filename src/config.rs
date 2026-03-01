@@ -116,6 +116,13 @@ pub struct RecorderConfig {
     /// Directory for acr_notes and acr_elapsed_secs (batch scripts). Empty = %APPDATA%/acr_telemetry.
     #[serde(default)]
     pub notes_dir: Option<String>,
+    /// Record GraphicsMap data (~60 Hz) alongside physics. Used for Grafana (e.g. distance_traveled).
+    #[serde(default = "default_record_graphics")]
+    pub record_graphics: bool,
+}
+
+fn default_record_graphics() -> bool {
+    true
 }
 
 impl Default for RecorderConfig {
@@ -124,6 +131,7 @@ impl Default for RecorderConfig {
             raw_output_dir: default_raw_output_dir(),
             stop_file_path: None,
             notes_dir: None,
+            record_graphics: true,
         }
     }
 }

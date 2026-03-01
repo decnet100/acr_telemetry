@@ -3,8 +3,9 @@
 //! Records complete physics data to rkyv format.
 //! Ctrl+C or stop file (acr_stop) to stop. Run acr_stop.bat or create the stop file to stop from game.
 //!
-//! Usage: acr_recorder [--graphics]
-//!   --graphics: Also record GraphicsMap data (~60 Hz)
+//! Usage: acr_recorder [--graphics | --no-graphics]
+//!   --graphics: Record GraphicsMap data (~60 Hz); default when record_graphics = true in config.
+//!   --no-graphics: Disable graphics recording (overrides config).
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -20,13 +21,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ctrlc_handler();
 
     let args: Vec<String> = std::env::args().collect();
-    let record_graphics = args.iter().any(|a| a == "--graphics");
-    
-    if record_graphics {
-        eprintln!("GraphicsMap recording enabled (experimental - may be all zeros in AC Rally)");
-    }
+    let cli_graphics = args.iter().any(|a| a == "--graphics");
+    let cli_no_graphics = args.iter().any(|a| a == "--no-graphics");
 
     let cfg = config::load_config();
+    let record_graphics = if cli_no_graphics {
+        false
+    } else if cli_graphics {
+        true
+    } else {
+        cfg.recorder.record_graphics
+    };
+
+    if record_graphics {
+        eprintln!("GraphicsMap recording enabled (~60 Hz, for Grafana/distance_traveled)");
+    }
     let output_path = output_path(&cfg)?;
     let notes_dir = config::resolve_notes_dir(&cfg.recorder);
     let mut stop_path = config::resolve_stop_file_path(&cfg.recorder);

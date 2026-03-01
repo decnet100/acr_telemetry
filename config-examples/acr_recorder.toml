@@ -5,6 +5,9 @@
 [recorder]
 # Directory for raw .rkyv recordings (relative to CWD or absolute path)
 raw_output_dir = "c:/temp/acc/telemetry_raw"
+# Record GraphicsMap (~60 Hz) alongside physics. Used for Grafana (e.g. distance_traveled).
+# Set to false to save disk space or if you don't need graphics. CLI: --no-graphics overrides.
+record_graphics = true
 
 [export]
 # Default export method: "csv" or "sqlite"

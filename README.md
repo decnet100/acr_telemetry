@@ -39,7 +39,7 @@ This compilation uses Rust (https://rust-lang.org/tools/install/). Please instal
 3. **Run from target/release/ or copy elsewhere/**  
    If you use the executables in a different folder for convenience, copy the toml config files from config-examples along with them so they're in the same folder. 
 
-4. **Record**: Run `acr_recorder.exe` (from `bin/` or `target/release/`) while ACC/AC Rally is running. **Ctrl+C** to stop, or run `batch\acr_stop.bat` (bind to game controller for in-game stop). The stop file is created in the **notes directory** (default `%APPDATA%\acr_telemetry` on Windows).
+4. **Record**: Run `acr_recorder.exe` (from `bin/` or `target/release/`) while ACC/AC Rally is running. By default, physics (~333 Hz) and **graphics** (~60 Hz, for Grafana e.g. `distance_traveled`) are recorded. Disable graphics in `acr_recorder.toml` with `record_graphics = false` or via `--no-graphics`. **Ctrl+C** to stop, or run `batch\acr_stop.bat` (bind to game controller for in-game stop). The stop file is created in the **notes directory** (default `%APPDATA%\acr_telemetry` on Windows).
 
 5. **Export**: `acr_export telemetry_raw --sqlite` (or `acr_export --rawDir --sqlite` to use the raw dir from config). Creates/updates the SQLite database for Grafana.
 

@@ -57,7 +57,7 @@ So you can re-run `acr_export --rawDir --sqlite` after new recordings; only new 
 For each `<stem>.rkyv` file, the exporter expects (optional):
 
 - **`<stem>.json`** – format metadata written by the recorder; used for **statics** when exporting to SQLite.
-- **`<stem>.graphics.rkyv`** – graphics recording; if present, exported to SQLite (graphics table) or to `<stem>.graphics.csv` when using CSV.
+- **`<stem>.graphics.rkyv`** – graphics recording (~60 Hz). Created by default by acr_recorder (config: `record_graphics = true` in `acr_recorder.toml`). If present, exported to SQLite (graphics table) or to `<stem>.graphics.csv` when using CSV.
 - **`<stem>.notes.json`** – notes and annotations written by the recorder on stop; if present, content is written to **recording_notes** and **annotations** in SQLite. See [Recording notes](../README.md#recording-notes-voice--manual) and [Grafana annotations](../grafana/ANNOTATIONS.md).
 
 ---
