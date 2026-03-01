@@ -32,6 +32,7 @@ All Temperatures are given as Kelvin by the game, any reference to °C is a late
 | `speed_kmh` | *Speed (km/h) | yes | ~0 … 200 |
 | `velocity_x`, `velocity_y`, `velocity_z` | *Velocity vector (world) | yes | ~−54 … 51 |
 | `local_velocity_x/y/z` | Velocity vector (local) | yes | ~−25 … 54 |
+| `local_angular_vel_x/y/z` | *Angular velocity (local, rad/s) | yes | rotation rates around local axes |
 | `g_force_x`, `g_force_y`, `g_force_z` | G-forces (g=9.81m/s²) | yes | usually -1.x g ... 1.x g; g_force_x: lateral, negative = right turn; g_force_y: up/down; z: longitudinal, negative=braking  |
 | `heading`, `pitch`, `roll` | *Orientation (rad) | yes | heading/roll: −π … π, pitch: ~−−π/2 … π/2|
 | `final_ff` | Force feedback value(?) | yes | ~−3.2 … 2.4 |
@@ -57,7 +58,7 @@ All Temperatures are given as Kelvin by the game, any reference to °C is a late
 | `air_density` | Air density | no | constant (no data) |
 | `performance_meter` | Performance meter | no | constant (no data) |
 | `engine_brake` | Engine brake | no | constant (no data) |
-| `ers_recovery_level`, `ers_power_level` | ERS | no | constant (no data) |
+| `ers_recovery_level`, `ers_power_level`, `ers_heat_charging`, `ers_is_charging` | ERS | no | constant (no data) |
 | `current_max_rpm` | Current max RPM | yes | 7250 … 8500 - constant for each car model |
 | `drs_available`, `drs_enabled` | DRS available/active | no | constant (no data) |
 | `p2p_activation`, `p2p_status` | Push-to-Pass | no | constant (no data) |
@@ -88,8 +89,11 @@ All Temperatures are given as Kelvin by the game, any reference to °C is a late
 | `tyre_temp_i`, `tyre_temp_m`, `tyre_temp_o` | Tyre temp inner/middle/outer | no | constant (no data) |
 | `mz`, `fz`, `my` | *Tyre moments/forces (probably: mz = roll moment, fz= longitudinal force, my: yaw moment) | yes | mz: ~−1500 … 1250; fz: ~−16 700 … 16 400; my: ~−18 600 … 18 500 |
 | `suspension_damage` | Suspension damage | no | constant (no data) |
+| `tyre_contact_point_*_x/y/z` | *Tyre contact patch position (world coordinates, meters) | yes | position of contact point for each wheel |
+| `tyre_contact_normal_*_x/y/z` | *Tyre contact normal vector | yes | surface normal at contact point |
+| `tyre_contact_heading_*_x/y/z` | *Tyre contact heading vector | yes | heading direction at contact point |
 
-Examples: `tyre_core_temp_fl`, `brake_temp_rr`, `slip_angle_fr`, etc.
+Examples: `tyre_core_temp_fl`, `brake_temp_rr`, `slip_angle_fr`, `tyre_contact_point_fl_x`, etc.
 
 ---
 
