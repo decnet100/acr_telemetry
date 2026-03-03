@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS recordings (
     source_file TEXT NOT NULL,
     created_at TEXT NOT NULL,
     duration_secs REAL NOT NULL,
-    sample_count INTEGER NOT NULL
+    sample_count INTEGER NOT NULL,
+    label TEXT
 );
 
 -- Physics samples (333 Hz)
@@ -217,6 +218,7 @@ pub struct RecordingNotesContent {
 /// Returns the recording_id for the new session.
 /// `notes_content`: optional content for recording_notes (from .notes.json).
 /// `annotations`: optional annotations for Grafana (from .notes.json); inserted into `annotations` table.
+/// `label`: optional label for the recording (e.g. from first voicenotes).
 pub fn export_to_sqlite(
     db_path: impl AsRef<Path>,
     source_file: &str,
@@ -225,9 +227,12 @@ pub fn export_to_sqlite(
     statics: Option<&crate::record::StaticsRecord>,
     notes_content: Option<&RecordingNotesContent>,
     annotations: Option<&[crate::notes::Annotation]>,
+    label: Option<&str>,
 ) -> rusqlite::Result<i64> {
     let mut conn = Connection::open(db_path)?;
     conn.execute_batch(SCHEMA)?;
+    // Add label column if missing (for existing DBs)
+    let _ = conn.execute("ALTER TABLE recordings ADD COLUMN label TEXT", []);
 
     let dt = 1.0 / sample_rate_hz as f64;
     let duration_secs = records.len() as f64 * dt;
@@ -236,8 +241,8 @@ pub fn export_to_sqlite(
     let tx = conn.transaction()?;
 
     tx.execute(
-        "INSERT INTO recordings (source_file, created_at, duration_secs, sample_count) VALUES (?1, ?2, ?3, ?4)",
-        params![source_file, created_at, duration_secs, records.len()],
+        "INSERT INTO recordings (source_file, created_at, duration_secs, sample_count, label) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![source_file, created_at, duration_secs, records.len(), label],
     )?;
     let recording_id = tx.last_insert_rowid();
 

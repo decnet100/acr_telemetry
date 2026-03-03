@@ -10,8 +10,9 @@
 
 use std::env;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use acr_recorder::config;
 use acr_recorder::export::sqlite_export::RecordingNotesContent;
@@ -90,6 +91,124 @@ fn read_notes_json(rkyv_path: &Path) -> Option<(RecordingNotesContent, Vec<acr_r
     }
 }
 
+/// Suggest recording label from first 5 voicenote texts.
+fn suggest_label(annotations: &[Annotation]) -> String {
+    annotations
+        .iter()
+        .filter(|a| a.tag == "voicenote")
+        .take(5)
+        .map(|a| a.text.as_str())
+        .collect::<Vec<_>>()
+        .join(" | ")
+}
+
+/// Prompt user to edit annotations and set label. Returns (edited_annotations, label).
+/// If annotations include voicenotes and stdin is a TTY, prompts. Otherwise uses suggested label.
+fn prompt_annotations_and_label(
+    sync_ann: &[Annotation],
+    user_ann: &[Annotation],
+    source_file: &str,
+    batch_mode: bool,
+) -> Result<(Vec<Annotation>, Option<String>), Box<dyn std::error::Error>> {
+    let voicenotes: Vec<_> = user_ann.iter().filter(|a| a.tag == "voicenote").collect();
+    let suggested_label = if voicenotes.is_empty() {
+        String::new()
+    } else {
+        suggest_label(user_ann)
+    };
+
+    let mut all: Vec<Annotation> = sync_ann.to_vec();
+    all.extend(user_ann.iter().cloned());
+    all.sort_by(|a, b| a.time_offset_sec.partial_cmp(&b.time_offset_sec).unwrap_or(std::cmp::Ordering::Equal));
+
+    let label = if batch_mode || voicenotes.is_empty() {
+        if suggested_label.is_empty() {
+            None
+        } else {
+            Some(suggested_label)
+        }
+    } else {
+        eprintln!("\n--- Voice notes for {} ---", source_file);
+        for a in voicenotes.iter() {
+            eprintln!("  {:.1}s: {}", a.time_offset_sec, a.text);
+        }
+        eprintln!("------------------------\n");
+
+        let mut edited = all.clone();
+        eprint!("Edit annotations in editor? (y/n) [n]: ");
+        std::io::stdout().flush()?;
+        let mut buf = String::new();
+        std::io::stdin().read_line(&mut buf)?;
+        if buf.trim().eq_ignore_ascii_case("y") {
+            edited = edit_annotations_in_editor(&all)?;
+        }
+
+        eprint!("Label [{}]: ", suggested_label);
+        std::io::stdout().flush()?;
+        buf.clear();
+        std::io::stdin().read_line(&mut buf)?;
+        let label_input = buf.trim();
+        let label = if label_input.is_empty() {
+            if suggested_label.is_empty() {
+                None
+            } else {
+                Some(suggested_label)
+            }
+        } else {
+            Some(label_input.to_string())
+        };
+
+        all = edited;
+        label
+    };
+
+    Ok((all, label))
+}
+
+fn edit_annotations_in_editor(annotations: &[Annotation]) -> Result<Vec<Annotation>, Box<dyn std::error::Error>> {
+    let dir = env::temp_dir();
+    let path = dir.join("acr_export_annotations.txt");
+    let content: String = annotations
+        .iter()
+        .map(|a| format!("{:.2}\t{}\t{}", a.time_offset_sec, a.tag, a.text))
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(&path, content)?;
+
+    let editor = env::var("EDITOR")
+        .unwrap_or_else(|_| env::var("VISUAL").unwrap_or_else(|_| "notepad.exe".to_string()));
+    let status = Command::new(editor.split_whitespace().next().unwrap_or("notepad"))
+        .args(editor.split_whitespace().skip(1))
+        .arg(&path)
+        .status()?;
+    if !status.success() {
+        return Err("Editor exited with error".into());
+    }
+
+    let f = BufReader::new(File::open(&path)?);
+    let mut out = Vec::new();
+    for line in f.lines() {
+        let line = line?;
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = line.splitn(3, '\t').collect();
+        if parts.len() >= 3 {
+            if let Ok(t) = parts[0].trim().parse::<f64>() {
+                out.push(Annotation {
+                    time_offset_sec: t,
+                    time_end_sec: None,
+                    text: parts[2].to_string(),
+                    tag: parts[1].to_string(),
+                });
+            }
+        }
+    }
+    let _ = std::fs::remove_file(&path);
+    Ok(out)
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
@@ -114,9 +233,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if input.is_dir() {
-        batch_export(&input, do_sqlite, do_csv, &sqlite_db)?;
+        batch_export(&input, do_sqlite, do_csv, &sqlite_db, true)?;
     } else if input.extension().map_or(false, |e| e == "rkyv") {
-        export_single(&input, do_sqlite, do_csv, &sqlite_db)?;
+        export_single(&input, do_sqlite, do_csv, &sqlite_db, false)?;
     } else {
         return Err(format!("Expected .rkyv file or directory: {}", input.display()).into());
     }
@@ -198,6 +317,7 @@ fn batch_export(
     do_sqlite: bool,
     do_csv: bool,
     sqlite_db: &str,
+    batch_mode: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut rkyv_files: Vec<PathBuf> = std::fs::read_dir(dir)?
         .filter_map(|e| e.ok())
@@ -234,7 +354,7 @@ fn batch_export(
             }
         }
 
-        match export_single(input, do_sqlite, do_csv, sqlite_db) {
+        match export_single(input, do_sqlite, do_csv, sqlite_db, batch_mode) {
             Ok(()) => exported += 1,
             Err(e) => {
                 let msg = e.to_string();
@@ -256,6 +376,7 @@ fn export_single(
     do_sqlite: bool,
     do_csv: bool,
     sqlite_db: &str,
+    batch_mode: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let json_path = input.with_extension("json");
     let statics = std::fs::read_to_string(&json_path)
@@ -291,9 +412,11 @@ fn export_single(
         };
         let dt_sec = 1.0 / sample_rate as f64;
         let sync_ann = sync_annotations_from_physics(&records, dt_sec);
-        let mut all_annotations = sync_ann;
-        all_annotations.extend(user_annotations);
-        all_annotations.sort_by(|a, b| a.time_offset_sec.partial_cmp(&b.time_offset_sec).unwrap_or(std::cmp::Ordering::Equal));
+        let (all_annotations, label) = if !user_annotations.is_empty() {
+            prompt_annotations_and_label(&sync_ann, &user_annotations, source_file, batch_mode)?
+        } else {
+            (sync_ann.clone(), None)
+        };
         let rid = acr_recorder::export::sqlite_export::export_to_sqlite(
             sqlite_db,
             source_file,
@@ -306,6 +429,7 @@ fn export_single(
             } else {
                 Some(&all_annotations)
             },
+            label.as_deref(),
         )?;
         eprintln!("Appended to {} (recording_id={})", sqlite_db, rid);
 

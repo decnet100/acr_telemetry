@@ -1,0 +1,22 @@
+# acr-voicenote configuration
+# Project dir, CWD, or ~/.config/acr-voicenote/config.toml
+
+[output]
+# Output file path. Ignored when notes_dir is set.
+file_path = "c:/temp/acc/voicenotes.txt"
+# For ACR integration: same path as acr_recorder notes_dir.
+notes_dir = "c:/temp/acc/telemetry_notes"
+
+# UDP output (optional)
+[output.udp]
+enabled = false
+host = "192.168.1.100"
+port = 9876
+
+[speech]
+# Language: "de", "en", "auto"
+language = "de"
+
+[whisper]
+# Model: tiny, base, small, tiny.en, base.en, small.en (downloaded on first run)
+model = "tiny"

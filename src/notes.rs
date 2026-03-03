@@ -102,6 +102,39 @@ fn read_file_trim(path: &Path) -> std::io::Result<Option<String>> {
     Ok(if text.is_empty() { None } else { Some(text) })
 }
 
+/// Parse acr_voicenote line: "ISO8601\ttext". Returns annotation params if within recording window.
+fn parse_voicenote_line(
+    line: &str,
+    recording_start_utc: &str,
+    recording_end_utc: &str,
+) -> Option<Annotation> {
+    let line = line.trim();
+    let Some(tab_pos) = line.find('\t') else {
+        return None;
+    };
+    let (ts_str, text) = line.split_at(tab_pos);
+    let text = text[1..].trim();
+    if text.is_empty() {
+        return None;
+    }
+    let voice_utc = chrono::DateTime::parse_from_rfc3339(ts_str.trim()).ok()?;
+    let start_utc = chrono::DateTime::parse_from_rfc3339(recording_start_utc).ok()?;
+    let end_utc = chrono::DateTime::parse_from_rfc3339(recording_end_utc).ok()?;
+    let voice_ts = voice_utc.with_timezone(&chrono::Utc);
+    let start_ts = start_utc.with_timezone(&chrono::Utc);
+    let end_ts = end_utc.with_timezone(&chrono::Utc);
+    if voice_ts < start_ts || voice_ts > end_ts {
+        return None;
+    }
+    let time_offset_sec = (voice_ts - start_ts).to_std().ok()?.as_secs_f64();
+    Some(Annotation {
+        time_offset_sec,
+        time_end_sec: None,
+        text: text.to_string(),
+        tag: "voicenote".to_string(),
+    })
+}
+
 /// Parse one line: extract [elapsed Ns] (-> time_offset_sec) and #marker TAG# (-> tag). Returns (time_offset_sec, tag, text) only when the line contains #marker (so pure notes lines are not turned into annotations).
 fn parse_annotation_line(line: &str) -> Option<(f64, String, String)> {
     let line = line.trim();
@@ -151,16 +184,23 @@ pub fn save_notes_to_json(
     let notes_body = read_file_trim(&notes_path)?.unwrap_or_default();
 
     let mut annotations: Vec<Annotation> = Vec::new();
+    let mut notes_lines: Vec<&str> = Vec::new();
     for line in notes_body.lines() {
-        if let Some((time_offset_sec, tag, text)) = parse_annotation_line(line) {
+        if let Some(ann) = parse_voicenote_line(line, recording_start_utc, recording_end_utc) {
+            annotations.push(ann);
+        } else if let Some((time_offset_sec, tag, text)) = parse_annotation_line(line) {
             annotations.push(Annotation {
                 time_offset_sec,
                 time_end_sec: None,
                 text,
                 tag,
             });
+        } else {
+            notes_lines.push(line);
         }
     }
+    annotations.sort_by(|a, b| a.time_offset_sec.partial_cmp(&b.time_offset_sec).unwrap_or(std::cmp::Ordering::Equal));
+    let notes_body = notes_lines.join("\n");
 
     let mut fields: HashMap<String, String> = HashMap::new();
     for field in RECORDING_NOTES_FIELDS {
