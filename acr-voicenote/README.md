@@ -1,4 +1,4 @@
-# acr-voicenote
+# acr_voicenote
 
 Voice-to-text for conferences: record audio with timestamps; append transcriptions to file or send via UDP.
 
@@ -10,13 +10,13 @@ Voice-to-text for conferences: record audio with timestamps; append transcriptio
 - **Candle-Whisper**: Pure Rust – all dependencies via `cargo` (no CMake, no C++ tools)
 - **Output**:
   - **File**: Line format `ISO8601\ttranscript` (tab-separated)
-  - **ACR integration**: Set `output.notes_dir` to acr_recorder’s `notes_dir` – writes to `acr_notes`; annotations end up in `.notes.json` on recording stop
+  - **ACR integration**: Set `output.notes_dir` to the same path as acr_recorder's `notes_dir` (default `%APPDATA%\acr_telemetry`). Writes to `acr_notes`; acr_export reads these on export, filters by recording time, and prompts to edit/set label and tags. The recorder does not read or delete `acr_notes`.
   - **UDP**: Optional – same format to another device
 
 ## Usage
 
 ```text
-acr-voicenote [OPTIONS]
+acr_voicenote [OPTIONS]
 
 OPTIONS:
   -c, --config <PATH>   Path to config.toml

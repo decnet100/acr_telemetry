@@ -8,6 +8,7 @@
 //! Config: acr_telemetry_bridge.toml (CWD or ~/.config/acr_recorder/)
 //! CLI options override config.
 
+use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -80,6 +81,15 @@ fn normalize_temp_unit(s: &str) -> String {
 
 fn f(v: f32) -> Value {
     Value::Number(Number::from_f64(v as f64).unwrap_or(Number::from(0)))
+}
+fn f64_val(v: f64) -> Value {
+    Value::Number(Number::from_f64(v).unwrap_or(Number::from(0)))
+}
+fn value_to_f64(v: &Value) -> Option<f64> {
+    match v {
+        Value::Number(n) => n.as_f64(),
+        _ => None,
+    }
 }
 fn i(v: i32) -> Value {
     Value::Number(Number::from(v))
@@ -532,6 +542,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         rate_hz, unit_label
     );
 
+    // Min/max tracking for dashboard slot fields (since bridge start)
+    let slot_fields: Vec<String> = bridge
+        .dashboard_slots
+        .iter()
+        .map(|s| s.field_id().to_string())
+        .collect();
+    let mut min_max: HashMap<String, (f64, f64)> = HashMap::new();
+
     // Cache recorder status to avoid filesystem checks on every iteration
     let mut recorder_active_cached = false;
     let mut last_recorder_check = std::time::Instant::now();
@@ -546,7 +564,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     last_recorder_check = std::time::Instant::now();
                 }
                 
-                let payload = build_payload(&data.physics, &temp_unit, recorder_active_cached);
+                let mut payload = build_payload(&data.physics, &temp_unit, recorder_active_cached);
+
+                // Update min/max for slot fields and add to payload
+                if let Value::Object(ref mut m) = payload {
+                    for field in &slot_fields {
+                        if let Some(v) = m.get(field) {
+                            if let Some(f_val) = value_to_f64(v) {
+                                min_max
+                                    .entry(field.clone())
+                                    .and_modify(|(min, max)| {
+                                        *min = (*min).min(f_val);
+                                        *max = (*max).max(f_val);
+                                    })
+                                    .or_insert((f_val, f_val));
+                            }
+                        }
+                    }
+                    for (field, (min_v, max_v)) in &min_max {
+                        m.insert(format!("{}_min", field), f64_val(*min_v));
+                        m.insert(format!("{}_max", field), f64_val(*max_v));
+                    }
+                }
 
                 if let Some((ref target, ref sock)) = udp_socket {
                     let buf = serde_json::to_vec(&payload).unwrap_or_default();

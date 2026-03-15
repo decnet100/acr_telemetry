@@ -23,7 +23,7 @@ pub const RECORDING_NOTES_FIELDS: &[&str] = &[
     "incident",
 ];
 
-const NOTES_FILENAME: &str = "acr_notes";
+pub const NOTES_FILENAME: &str = "acr_notes";
 const ELAPSED_FILENAME: &str = "acr_elapsed_secs";
 
 /// One annotation: point in time (time_offset_sec) or range (time_end_sec). Grafana uses time/timeEnd in ms.
@@ -102,11 +102,38 @@ fn read_file_trim(path: &Path) -> std::io::Result<Option<String>> {
     Ok(if text.is_empty() { None } else { Some(text) })
 }
 
-/// Parse acr_voicenote line: "ISO8601\ttext". Returns annotation params if within recording window.
+/// True if line is voicenote format but timestamp is outside (possibly padded) window.
+fn is_voicenote_outside_window(line: &str, window_start: &str, window_end: &str) -> bool {
+    let line = line.trim();
+    let Some(tab_pos) = line.find('\t') else {
+        return false;
+    };
+    let ts_str = line[..tab_pos].trim();
+    let voice_utc = match chrono::DateTime::parse_from_rfc3339(ts_str).ok() {
+        Some(v) => v,
+        None => return false,
+    };
+    let start_utc = match chrono::DateTime::parse_from_rfc3339(window_start).ok() {
+        Some(s) => s,
+        None => return false,
+    };
+    let end_utc = match chrono::DateTime::parse_from_rfc3339(window_end).ok() {
+        Some(e) => e,
+        None => return false,
+    };
+    let voice_ts = voice_utc.with_timezone(&chrono::Utc);
+    let start_ts = start_utc.with_timezone(&chrono::Utc);
+    let end_ts = end_utc.with_timezone(&chrono::Utc);
+    voice_ts < start_ts || voice_ts > end_ts
+}
+
+/// Parse acr_voicenote line: "ISO8601\ttext". Returns annotation params if within window.
+/// recording_start_utc is used for time_offset_sec; window_start/end for filtering.
 fn parse_voicenote_line(
     line: &str,
     recording_start_utc: &str,
-    recording_end_utc: &str,
+    window_start: &str,
+    window_end: &str,
 ) -> Option<Annotation> {
     let line = line.trim();
     let Some(tab_pos) = line.find('\t') else {
@@ -118,15 +145,17 @@ fn parse_voicenote_line(
         return None;
     }
     let voice_utc = chrono::DateTime::parse_from_rfc3339(ts_str.trim()).ok()?;
-    let start_utc = chrono::DateTime::parse_from_rfc3339(recording_start_utc).ok()?;
-    let end_utc = chrono::DateTime::parse_from_rfc3339(recording_end_utc).ok()?;
+    let rec_start = chrono::DateTime::parse_from_rfc3339(recording_start_utc).ok()?;
+    let win_start = chrono::DateTime::parse_from_rfc3339(window_start).ok()?;
+    let win_end = chrono::DateTime::parse_from_rfc3339(window_end).ok()?;
     let voice_ts = voice_utc.with_timezone(&chrono::Utc);
-    let start_ts = start_utc.with_timezone(&chrono::Utc);
-    let end_ts = end_utc.with_timezone(&chrono::Utc);
-    if voice_ts < start_ts || voice_ts > end_ts {
+    let rec_start_ts = rec_start.with_timezone(&chrono::Utc);
+    let win_start_ts = win_start.with_timezone(&chrono::Utc);
+    let win_end_ts = win_end.with_timezone(&chrono::Utc);
+    if voice_ts < win_start_ts || voice_ts > win_end_ts {
         return None;
     }
-    let time_offset_sec = (voice_ts - start_ts).to_std().ok()?.as_secs_f64();
+    let time_offset_sec = (voice_ts - rec_start_ts).num_milliseconds() as f64 / 1000.0;
     Some(Annotation {
         time_offset_sec,
         time_end_sec: None,
@@ -167,7 +196,107 @@ fn parse_annotation_line(line: &str) -> Option<(f64, String, String)> {
     Some((time_offset_sec, tag, text))
 }
 
+/// Seconds to extend the notes window before recording start and after recording end.
+const NOTES_WINDOW_PADDING_SECS: i64 = 10;
+
+/// Load notes and annotations from acr_notes, filtered by recording time range.
+/// Window is extended by 10 seconds before start and after end to avoid losing notes at boundaries.
+/// Returns (notes_text, annotations). Used by acr_export when .notes.json has empty content.
+pub fn load_notes_from_acr_notes(
+    notes_dir: &Path,
+    recording_start_utc: &str,
+    recording_end_utc: &str,
+) -> std::io::Result<(String, Vec<Annotation>)> {
+    let notes_path = notes_dir.join(NOTES_FILENAME);
+    let notes_body = read_file_trim(&notes_path)?.unwrap_or_default();
+
+    // Extend window by padding to capture notes at boundaries
+    let (window_start, window_end) = {
+        let start_dt = chrono::DateTime::parse_from_rfc3339(recording_start_utc).ok();
+        let end_dt = chrono::DateTime::parse_from_rfc3339(recording_end_utc).ok();
+        match (start_dt, end_dt) {
+            (Some(s), Some(e)) => {
+                let pad = chrono::Duration::seconds(NOTES_WINDOW_PADDING_SECS);
+                let ws = (s - pad).with_timezone(&chrono::Utc).to_rfc3339();
+                let we = (e + pad).with_timezone(&chrono::Utc).to_rfc3339();
+                (ws, we)
+            }
+            _ => (recording_start_utc.to_string(), recording_end_utc.to_string()),
+        }
+    };
+
+    let mut annotations: Vec<Annotation> = Vec::new();
+    let mut notes_lines: Vec<&str> = Vec::new();
+    for line in notes_body.lines() {
+        if let Some(ann) = parse_voicenote_line(line, recording_start_utc, &window_start, &window_end)
+        {
+            annotations.push(ann);
+        } else if is_voicenote_outside_window(line, &window_start, &window_end) {
+            continue; // Voicenote outside window – skip
+        } else if let Some((time_offset_sec, tag, text)) = parse_annotation_line(line) {
+            annotations.push(Annotation {
+                time_offset_sec,
+                time_end_sec: None,
+                text,
+                tag,
+            });
+        } else {
+            notes_lines.push(line);
+        }
+    }
+    annotations.sort_by(|a, b| {
+        a.time_offset_sec
+            .partial_cmp(&b.time_offset_sec)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let notes_body = notes_lines.join("\n");
+    Ok((notes_body, annotations))
+}
+
+/// Write final .notes.json (used by acr_export after user confirms notes).
+pub fn write_notes_json(
+    rkyv_path: &Path,
+    payload: &RecordingNotesJson,
+) -> std::io::Result<()> {
+    let stem = rkyv_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("recording");
+    let parent = rkyv_path.parent().unwrap_or(Path::new("."));
+    let json_path = parent.join(format!("{}.notes.json", stem));
+    let json_bytes = serde_json::to_string_pretty(payload)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
+    std::fs::write(&json_path, json_bytes)?;
+    Ok(())
+}
+
+/// Write minimal .notes.json with only recording start/end times (used by recorder; notes handled by acr_export).
+pub fn save_recording_times(
+    rkyv_path: &Path,
+    recording_start_utc: &str,
+    recording_end_utc: &str,
+) -> std::io::Result<()> {
+    let stem = rkyv_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("recording");
+    let parent = rkyv_path.parent().unwrap_or(Path::new("."));
+    let payload = RecordingNotesJson {
+        recording_start_utc: recording_start_utc.to_string(),
+        recording_end_utc: recording_end_utc.to_string(),
+        notes: String::new(),
+        fields: HashMap::new(),
+        annotations: Vec::new(),
+    };
+    let json_path = parent.join(format!("{}.notes.json", stem));
+    let json_bytes = serde_json::to_string_pretty(&payload)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
+    std::fs::write(&json_path, json_bytes)?;
+    Ok(())
+}
+
 /// Called when recording stops: read acr_notes and acr_<field>, build RecordingNotesJson (with parsed annotations), write <stem>.notes.json, then delete all acr_* files.
+#[allow(dead_code)] // Kept for reference; acr_export now handles notes
 pub fn save_notes_to_json(
     rkyv_path: &Path,
     notes_dir: &Path,
@@ -186,7 +315,12 @@ pub fn save_notes_to_json(
     let mut annotations: Vec<Annotation> = Vec::new();
     let mut notes_lines: Vec<&str> = Vec::new();
     for line in notes_body.lines() {
-        if let Some(ann) = parse_voicenote_line(line, recording_start_utc, recording_end_utc) {
+        if let Some(ann) = parse_voicenote_line(
+            line,
+            recording_start_utc,
+            recording_start_utc,
+            recording_end_utc,
+        ) {
             annotations.push(ann);
         } else if let Some((time_offset_sec, tag, text)) = parse_annotation_line(line) {
             annotations.push(Annotation {

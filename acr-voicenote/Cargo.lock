@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "acr-voicenote"
+name = "acr_voicenote"
 version = "0.1.0"
 dependencies = [
  "anyhow",

@@ -22,7 +22,7 @@ Web dashboard for monitoring ACC/AC Rally temperatures and telemetry on a second
    Example: `http://192.168.1.42:8080`. 
 
 
-3. The dashboard auto-refreshes and shows configurable fields (speed, temps, fuel, etc.). Configure fields and coloring in **`acr_telemetry_bridge.toml`** (all in one file).
+3. The dashboard auto-refreshes and shows configurable fields (speed, temps, fuel, etc.). Configure fields and coloring in **`acr_telemetry_bridge.toml`** (all in one file). For each configured slot, the **min and max** values measured since the bridge started are shown in smaller text below the current value.
 
 ## Recording Status Indicator
 

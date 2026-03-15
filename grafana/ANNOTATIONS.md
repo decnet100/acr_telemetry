@@ -1,6 +1,6 @@
 # Grafana annotations from recording markers
 
-When you use the batch scripts `acr_note_good.bat` / `acr_note_aborted.bat` (or append lines with `[elapsed Ns]` and `#marker TAG#` to `acr_notes`), the recorder writes them into `<stem>.notes.json`. On `acr_export ... --sqlite`, these are inserted into the **`annotations`** table so Grafana can show them on the time axis.
+When you use the batch scripts `acr_marker_good.bat` / `acr_marker_bad.bat` / `acr_note_aborted.bat` (or append lines with `[elapsed Ns]` and `#marker TAG#` to `acr_notes`), acr_export reads from `acr_notes` and writes them into `<stem>.notes.json` and the **`annotations`** table. Sync annotations from physics (e.g. `sync_air_temp_gt_0`, `sync_speed_gt_0`) are also stored. Grafana shows all of these on the time axis.
 
 ## Annotation table
 

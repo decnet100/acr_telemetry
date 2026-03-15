@@ -1,4 +1,4 @@
-//! acr-voicenote – Voice-to-text for conferences
+//! acr_voicenote – Voice-to-text for conferences
 //!
 //! Record audio with timestamps; append transcriptions to file or send via UDP.
 
@@ -8,7 +8,7 @@ mod whisper_mod;
 use anyhow::Result;
 use chrono::Utc;
 use clap::Parser;
-use config::Config;
+use config::{Config, UdpConfig};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use std::io::Write;
 use std::path::PathBuf;
@@ -16,10 +16,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 #[derive(Parser)]
-#[command(name = "acr-voicenote")]
+#[command(name = "acr_voicenote")]
 #[command(about = "Voice-to-text for conferences: append with timestamps to file or UDP")]
 struct Cli {
-    /// Path to config.toml (default: config.toml, ~/.config/acr-voicenote/config.toml)
+    /// Path to config.toml (default: config.toml, ~/.config/acr_voicenote/config.toml)
     #[arg(short, long)]
     config: Option<PathBuf>,
 
@@ -42,22 +42,110 @@ fn main() -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("config.toml not found. Use --config <path>."))?;
 
     let config = Config::load(&config_path)?;
+    let config_abs = output_path_absolute(&config_path);
+    eprintln!("Config: {}", config_abs.display());
 
     let device = select_audio_device()?;
     println!("Using device: {}", device.name().unwrap_or_default());
 
-    let file_path = if let Some(ref notes_dir) = config.output.notes_dir {
-        notes_dir.join("acr_notes")
-    } else {
-        config.output.file_path.clone()
-    };
+    let notes_dir = config
+        .output
+        .notes_dir
+        .clone()
+        .unwrap_or_else(config::default_notes_dir);
+    let file_path = notes_dir.join("acr_notes");
     let udp_config = config.output.udp.clone();
+
+    print_output_dest(&file_path, udp_config.as_ref());
     let language = config.speech.language.clone();
     let model_name = config.whisper.model.clone();
+    let no_speech_threshold = config.whisper.no_speech_threshold;
+    let logprob_threshold = config.whisper.logprob_threshold;
 
-    run_voicenote_loop(device, file_path, udp_config, language, model_name)?;
+    run_voicenote_loop(
+        device,
+        file_path,
+        udp_config,
+        language,
+        model_name,
+        no_speech_threshold,
+        logprob_threshold,
+    )?;
 
     Ok(())
+}
+
+/// When language is de/en, text must not contain Cyrillic or CJK – that indicates Whisper guessed wrong.
+fn contains_unexpected_script(text: &str, lang: Option<&str>) -> bool {
+    let restrict = matches!(lang, Some("de") | Some("en"));
+    if !restrict {
+        return false;
+    }
+    text.chars().any(|c| {
+        matches!(c,
+            '\u{0400}'..='\u{04FF}'   // Cyrillic
+            | '\u{4E00}'..='\u{9FFF}'  // CJK Unified Ideographs
+            | '\u{3040}'..='\u{309F}'  // Hiragana
+            | '\u{30A0}'..='\u{30FF}'  // Katakana
+            | '\u{3100}'..='\u{312F}'  // Bopomofo
+            | '\u{AC00}'..='\u{D7AF}'  // Hangul Syllables
+        )
+    })
+}
+
+/// Filters Whisper hallucinations: repetitive phrases, known garbage, and wrong-script output (Cyrillic/CJK when de/en).
+fn is_likely_hallucination(text: &str, lang: Option<&str>) -> bool {
+    let s = text.trim().to_lowercase();
+    if s.is_empty() {
+        return true;
+    }
+    if contains_unexpected_script(text, lang) {
+        return true;
+    }
+    // Known Whisper hallucination patterns (often from subtitle training data)
+    const KNOWN: &[&str] = &[
+        "thank you for watching",
+        "thanks for watching",
+        "subscribe",
+        "subtitles by",
+        "please subscribe",
+    ];
+    if KNOWN.iter().any(|p| s.contains(p)) {
+        return true;
+    }
+    let words: Vec<&str> = s.split_whitespace().collect();
+    if words.len() < 4 {
+        return false;
+    }
+    // Same word repeated many times (e.g. "sehr sehr sehr ...") → hallucination
+    use std::collections::HashMap;
+    let mut counts: HashMap<&str, usize> = HashMap::new();
+    for w in &words {
+        *counts.entry(*w).or_default() += 1;
+    }
+    let max_count = counts.values().copied().max().unwrap_or(0);
+    let repetition_ratio = max_count as f64 / words.len() as f64;
+    repetition_ratio > 0.5
+}
+
+fn output_path_absolute(path: &PathBuf) -> PathBuf {
+    if path.is_absolute() {
+        path.clone()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(path)
+    }
+}
+
+fn print_output_dest(file_path: &PathBuf, udp_config: Option<&UdpConfig>) {
+    let abs = output_path_absolute(file_path);
+    println!("Output file: {}", abs.display());
+    if let Some(udp) = udp_config {
+        if udp.enabled {
+            println!("UDP target: {}:{}", udp.host, udp.port);
+        }
+    }
 }
 
 fn list_audio_devices() -> Result<()> {
@@ -118,6 +206,8 @@ fn run_voicenote_loop(
     udp_config: Option<config::UdpConfig>,
     language: String,
     model_name: String,
+    no_speech_threshold: f64,
+    logprob_threshold: f64,
 ) -> Result<()> {
     let udp_enabled = udp_config
         .as_ref()
@@ -181,12 +271,19 @@ fn run_voicenote_loop(
         let resampled = resample_to_16k(&buffered_pcm, in_sample_rate as u32);
         buffered_pcm.clear();
 
-        match whisper_mod::transcribe_pcm(&resampled, &model_name, lang) {
+        match whisper_mod::transcribe_pcm(
+            &resampled,
+            &model_name,
+            lang,
+            no_speech_threshold,
+            logprob_threshold,
+        ) {
             Ok(texts) => {
                 let full_text = texts.join(" ").trim().to_string();
                 if full_text.is_empty()
                     || full_text == "..."
                     || full_text.chars().all(|c| c == '.' || c.is_whitespace())
+                    || is_likely_hallucination(&full_text, lang)
                 {
                     continue;
                 }
@@ -215,6 +312,9 @@ fn run_voicenote_loop(
             Err(e) => eprintln!("Transcription error: {e}"),
         }
     }
+
+    println!("\nStopped. Output was:");
+    print_output_dest(&file_path, udp_config.as_ref());
 
     Ok(())
 }

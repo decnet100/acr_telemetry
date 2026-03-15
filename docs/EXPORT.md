@@ -58,7 +58,7 @@ For each `<stem>.rkyv` file, the exporter expects (optional):
 
 - **`<stem>.json`** – format metadata written by the recorder; used for **statics** when exporting to SQLite.
 - **`<stem>.graphics.rkyv`** – graphics recording (~60 Hz). Created by default by acr_recorder (config: `record_graphics = true` in `acr_recorder.toml`). If present, exported to SQLite (graphics table) or to `<stem>.graphics.csv` when using CSV.
-- **`<stem>.notes.json`** – notes and annotations written by the recorder on stop; if present, content is written to **recording_notes** and **annotations** in SQLite. See [Recording notes](../README.md#recording-notes-voice--manual) and [Grafana annotations](../grafana/ANNOTATIONS.md).
+- **`<stem>.notes.json`** – written by the recorder on stop (recording start/end times only) and by acr_export (notes, annotations, tags). acr_export reads **acr_notes** from the notes directory when there is no user content yet; it filters by recording time (10 s padding) and interactively prompts: include notes, edit/delete, set recording label (suggested from first 5 voice notes), add tags. Output goes to `recording_notes`, `annotations`, and tag tables (`acr_telemetry_tags`, `acr_tag_lookup`). Sync annotations (e.g. `sync_air_temp_gt_0`, `sync_speed_gt_0`) appear as vertical lines on Grafana dashboards. See [Recording notes](../README.md#recording-notes-voice--manual) and [Grafana annotations](../grafana/ANNOTATIONS.md).
 
 ---
 
@@ -100,7 +100,7 @@ acr_export telemetry_raw/acc_physics_1771667046.rkyv
 
 | Mode | Output |
 |------|--------|
-| **SQLite** | One database; each run **appends** new recordings. Tables: `recordings`, `physics`, `statics`, `graphics`, `recording_notes`, `annotations`. |
+| **SQLite** | One database; each run **appends** new recordings. Tables: `recordings`, `physics`, `statics`, `graphics`, `recording_notes`, `annotations`, `acr_telemetry_tags`, `acr_tag_lookup`. |
 | **CSV** | Per `.rkyv`: `<stem>.csv`, optionally `<stem>.graphics.csv`, and `<stem>.ld` in the same directory as the input. |
 
 The tool prints the **recording_id** for each new SQLite export so you can use it in Grafana.

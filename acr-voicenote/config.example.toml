@@ -1,11 +1,12 @@
-# acr-voicenote configuration
-# Save as config.toml (project dir, CWD, or ~/.config/acr-voicenote/)
+# acr_voicenote configuration
+# Save as config.toml (project dir, CWD, or ~/.config/acr_voicenote/)
 
 [output]
 # Output file path (lines: ISO timestamp + tab + transcript). Ignored when notes_dir is set.
 file_path = "c:/temp/acc/voicenotes.txt"
-# For ACR integration: write to notes_dir/acr_notes (same path as acr_recorder notes_dir).
-notes_dir = "c:/temp/acc/telemetry_notes"
+# For ACR integration: write to notes_dir/acr_notes. Default: %APPDATA%/acr_telemetry (same as acr_recorder).
+# Omit to use default; set to override (e.g. "c:/temp/acc/telemetry_notes").
+# notes_dir = "c:/temp/acc/telemetry_notes"
 
 # UDP output (optional)
 [output.udp]
@@ -20,3 +21,8 @@ language = "de"
 [whisper]
 # Model: tiny, base, small, tiny.en, base.en, small.en (downloaded on first run)
 model = "tiny"
+# Silence filtering (lower = more aggressive). Reduces room noise / hallucinations.
+# no_speech_threshold: default 0.4 (candle default was 0.6)
+# logprob_threshold: default -0.5 (candle default was -1.0)
+# no_speech_threshold = 0.4
+# logprob_threshold = -0.5

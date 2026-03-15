@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = std::fs::remove_file(&stop_path);
     }
     let _ = std::fs::create_dir_all(&notes_dir);
-    acr_recorder::notes::reset_notes_at_start(&notes_dir)?;
+    // Notes are no longer handled by recorder; acr_export reads acr_notes when exporting
     let start_time = chrono::Utc::now();
     eprintln!("Recording to: {}", output_path.display());
     eprintln!("Ctrl+C to stop, or run acr_stop.bat / create {} to stop from game.", stop_path.display());
@@ -114,13 +114,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     recorder.flush()?;
     let end_time = chrono::Utc::now();
-    if let Err(e) = acr_recorder::notes::save_notes_to_json(
+    if let Err(e) = acr_recorder::notes::save_recording_times(
         &output_path,
-        &notes_dir,
         &start_time.to_rfc3339(),
         &end_time.to_rfc3339(),
     ) {
-        eprintln!("Note: could not save notes JSON: {}", e);
+        eprintln!("Note: could not save recording times: {}", e);
     }
     eprintln!(
         "Done. Recorded {} samples in {:.1}s",

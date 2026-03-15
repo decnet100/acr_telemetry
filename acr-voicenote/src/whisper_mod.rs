@@ -54,6 +54,7 @@ impl WhichModel {
 
 pub enum Model {
     Normal(m::model::Whisper),
+    #[allow(dead_code)]
     Quantized(m::quantized_model::Whisper),
 }
 
@@ -91,6 +92,7 @@ impl Model {
         }
     }
 
+    #[allow(dead_code)]
     pub fn reset_kv_cache(&mut self) {
         match self {
             Self::Normal(m) => m.reset_kv_cache(),
@@ -125,6 +127,8 @@ struct Decoder {
     no_speech_token: u32,
     no_timestamps_token: u32,
     language_token: Option<u32>,
+    no_speech_threshold: f64,
+    logprob_threshold: f64,
 }
 
 impl Decoder {
@@ -135,6 +139,8 @@ impl Decoder {
         device: &Device,
         language_token: Option<u32>,
         timestamps: bool,
+        no_speech_threshold: f64,
+        logprob_threshold: f64,
     ) -> Result<Self> {
         let no_timestamps_token = token_id(&tokenizer, m::NO_TIMESTAMPS_TOKEN)?;
         let suppress_tokens: Vec<f32> = (0..model.config().vocab_size as u32)
@@ -169,6 +175,8 @@ impl Decoder {
             no_speech_token,
             language_token,
             no_timestamps_token,
+            no_speech_threshold,
+            logprob_threshold,
         })
     }
 
@@ -252,8 +260,8 @@ impl Decoder {
             }
             match dr {
                 Ok(dr) => {
-                    let needs_fallback = dr.avg_logprob < m::LOGPROB_THRESHOLD;
-                    if !needs_fallback || dr.no_speech_prob > m::NO_SPEECH_THRESHOLD {
+                    let needs_fallback = dr.avg_logprob < self.logprob_threshold;
+                    if !needs_fallback || dr.no_speech_prob > self.no_speech_threshold {
                         return Ok(dr);
                     }
                 }
@@ -272,7 +280,8 @@ impl Decoder {
             let mel_segment = mel.narrow(2, seek, segment_size)?;
             let dr = self.decode_with_fallback(&mel_segment)?;
             seek += segment_size;
-            if dr.no_speech_prob > m::NO_SPEECH_THRESHOLD && dr.avg_logprob < m::LOGPROB_THRESHOLD {
+            if dr.no_speech_prob > self.no_speech_threshold && dr.avg_logprob < self.logprob_threshold
+            {
                 continue;
             }
             let text = dr.text.trim();
@@ -283,10 +292,12 @@ impl Decoder {
         Ok(texts)
     }
 
+    #[allow(dead_code)]
     fn set_language_token(&mut self, language_token: Option<u32>) {
         self.language_token = language_token;
     }
 
+    #[allow(dead_code)]
     fn model_mut(&mut self) -> &mut Model {
         &mut self.model
     }
@@ -335,6 +346,8 @@ pub fn transcribe_pcm(
     pcm: &[f32],
     model: &str,
     language: Option<&str>,
+    no_speech_threshold: f64,
+    logprob_threshold: f64,
 ) -> Result<Vec<String>> {
     let device = Device::Cpu;
     let (mut whisper_model, tokenizer, config) = load_model(model, &device)?;
@@ -366,6 +379,8 @@ pub fn transcribe_pcm(
         &device,
         language_token,
         false,
+        no_speech_threshold,
+        logprob_threshold,
     )?;
 
     decoder.run(&mel_t)

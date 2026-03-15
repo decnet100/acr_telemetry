@@ -51,16 +51,25 @@ fn sync_annotations_from_physics(records: &[PhysicsRecord], dt_sec: f64) -> Vec<
     out
 }
 
-/// Read <stem>.notes.json and convert to RecordingNotesContent + annotations for SQLite export.
-fn read_notes_json(rkyv_path: &Path) -> Option<(RecordingNotesContent, Vec<acr_recorder::notes::Annotation>)> {
+/// Read <stem>.notes.json. Returns (content, annotations, start_utc, end_utc).
+/// If notes/annotations are empty, caller may load from acr_notes using start/end.
+fn read_notes_json(
+    rkyv_path: &Path,
+) -> Option<(RecordingNotesContent, Vec<acr_recorder::notes::Annotation>, String, String)> {
     let stem = rkyv_path.file_stem()?.to_str()?;
     let parent = rkyv_path.parent().unwrap_or(Path::new("."));
     let path = parent.join(format!("{}.notes.json", stem));
     let json_str = std::fs::read_to_string(&path).ok()?;
     let j: RecordingNotesJson = serde_json::from_str(&json_str).ok()?;
+    let start_utc = j.recording_start_utc.clone();
+    let end_utc = j.recording_end_utc.clone();
     let trim = |s: &str| {
         let t = s.trim();
-        if t.is_empty() { None } else { Some(t.to_string()) }
+        if t.is_empty() {
+            None
+        } else {
+            Some(t.to_string())
+        }
     };
     let notes = trim(&j.notes);
     let content = RecordingNotesContent {
@@ -74,21 +83,15 @@ fn read_notes_json(rkyv_path: &Path) -> Option<(RecordingNotesContent, Vec<acr_r
         session_goal: j.fields.get("session_goal").and_then(|s| trim(s)),
         incident: j.fields.get("incident").and_then(|s| trim(s)),
     };
-    let has_any = content.notes.is_some()
-        || content.laptime.is_some()
-        || content.result.is_some()
-        || content.driver_impression.is_some()
-        || content.tested_parameters.is_some()
-        || content.conditions.is_some()
-        || content.setup_notes.is_some()
-        || content.session_goal.is_some()
-        || content.incident.is_some()
-        || !j.annotations.is_empty();
-    if has_any {
-        Some((content, j.annotations))
-    } else {
-        None
-    }
+    Some((content, j.annotations, start_utc, end_utc))
+}
+
+/// Result of the notes/label/tags interactive flow.
+struct NotesFlowResult {
+    notes_content: RecordingNotesContent,
+    annotations: Vec<Annotation>,
+    label: Option<String>,
+    tags: Vec<String>,
 }
 
 /// Suggest recording label from first 5 voicenote texts.
@@ -102,14 +105,14 @@ fn suggest_label(annotations: &[Annotation]) -> String {
         .join(" | ")
 }
 
-/// Prompt user to edit annotations and set label. Returns (edited_annotations, label).
-/// If annotations include voicenotes and stdin is a TTY, prompts. Otherwise uses suggested label.
-fn prompt_annotations_and_label(
+/// Full interactive flow: notes (include/edit/delete), label (from first 5 notes), recording name, tags.
+fn prompt_notes_and_label_and_tags(
     sync_ann: &[Annotation],
     user_ann: &[Annotation],
+    notes_text: &str,
     source_file: &str,
     batch_mode: bool,
-) -> Result<(Vec<Annotation>, Option<String>), Box<dyn std::error::Error>> {
+) -> Result<NotesFlowResult, Box<dyn std::error::Error>> {
     let voicenotes: Vec<_> = user_ann.iter().filter(|a| a.tag == "voicenote").collect();
     let suggested_label = if voicenotes.is_empty() {
         String::new()
@@ -119,33 +122,60 @@ fn prompt_annotations_and_label(
 
     let mut all: Vec<Annotation> = sync_ann.to_vec();
     all.extend(user_ann.iter().cloned());
-    all.sort_by(|a, b| a.time_offset_sec.partial_cmp(&b.time_offset_sec).unwrap_or(std::cmp::Ordering::Equal));
+    all.sort_by(|a, b| {
+        a.time_offset_sec
+            .partial_cmp(&b.time_offset_sec)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
-    let label = if batch_mode || voicenotes.is_empty() {
-        if suggested_label.is_empty() {
-            None
-        } else {
-            Some(suggested_label)
-        }
+    let mut resolved_notes = notes_text.to_string();
+    let mut resolved_annotations = all.clone();
+
+    let (label, tags) = if batch_mode && (voicenotes.is_empty() && notes_text.trim().is_empty()) {
+        (
+            if suggested_label.is_empty() {
+                None
+            } else {
+                Some(suggested_label)
+            },
+            Vec::new(),
+        )
     } else {
-        eprintln!("\n--- Voice notes for {} ---", source_file);
-        for a in voicenotes.iter() {
-            eprintln!("  {:.1}s: {}", a.time_offset_sec, a.text);
-        }
-        eprintln!("------------------------\n");
+        if !voicenotes.is_empty() || !notes_text.trim().is_empty() {
+            eprintln!("\n--- Notes for {} ---", source_file);
+            for a in voicenotes.iter() {
+                eprintln!("  {:.1}s: {}", a.time_offset_sec, a.text);
+            }
+            if !notes_text.trim().is_empty() {
+                eprintln!("  (notes): {}", notes_text.trim());
+            }
+            eprintln!("------------------------\n");
 
-        let mut edited = all.clone();
-        eprint!("Edit annotations in editor? (y/n) [n]: ");
+            eprint!("Include these notes? (y/n) [y]: ");
+            std::io::stdout().flush()?;
+            let mut buf = String::new();
+            std::io::stdin().read_line(&mut buf)?;
+            let include_notes = !buf.trim().eq_ignore_ascii_case("n");
+            if !include_notes {
+                resolved_annotations = sync_ann.to_vec();
+                resolved_notes = String::new();
+            } else {
+                eprint!("Edit or delete notes in editor? (y/n) [n]: ");
+                std::io::stdout().flush()?;
+                buf.clear();
+                std::io::stdin().read_line(&mut buf)?;
+                if buf.trim().eq_ignore_ascii_case("y") {
+                    resolved_annotations = edit_annotations_in_editor(&resolved_annotations)?;
+                }
+            }
+        }
+
+        // Recompute label suggestion from final annotations (after include/edit)
+        let suggested_label = suggest_label(&resolved_annotations);
+
+        eprint!("Recording label [{}]: ", suggested_label);
         std::io::stdout().flush()?;
         let mut buf = String::new();
-        std::io::stdin().read_line(&mut buf)?;
-        if buf.trim().eq_ignore_ascii_case("y") {
-            edited = edit_annotations_in_editor(&all)?;
-        }
-
-        eprint!("Label [{}]: ", suggested_label);
-        std::io::stdout().flush()?;
-        buf.clear();
         std::io::stdin().read_line(&mut buf)?;
         let label_input = buf.trim();
         let label = if label_input.is_empty() {
@@ -158,11 +188,34 @@ fn prompt_annotations_and_label(
             Some(label_input.to_string())
         };
 
-        all = edited;
-        label
+        eprint!("Tags (comma-separated, e.g. wet,qualifying): ");
+        std::io::stdout().flush()?;
+        buf.clear();
+        std::io::stdin().read_line(&mut buf)?;
+        let tags: Vec<String> = buf
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        (label, tags)
     };
 
-    Ok((all, label))
+    let notes_content = RecordingNotesContent {
+        notes: if resolved_notes.trim().is_empty() {
+            None
+        } else {
+            Some(resolved_notes.trim().to_string())
+        },
+        ..Default::default()
+    };
+
+    Ok(NotesFlowResult {
+        notes_content,
+        annotations: resolved_annotations,
+        label,
+        tags,
+    })
 }
 
 fn edit_annotations_in_editor(annotations: &[Annotation]) -> Result<Vec<Annotation>, Box<dyn std::error::Error>> {
@@ -232,10 +285,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err(format!("Not found: {}", input.display()).into());
     }
 
+    let notes_dir = config::resolve_notes_dir(&cfg.recorder);
     if input.is_dir() {
-        batch_export(&input, do_sqlite, do_csv, &sqlite_db, true)?;
+        batch_export(&input, do_sqlite, do_csv, &sqlite_db, &notes_dir, true)?;
     } else if input.extension().map_or(false, |e| e == "rkyv") {
-        export_single(&input, do_sqlite, do_csv, &sqlite_db, false)?;
+        export_single(&input, do_sqlite, do_csv, &sqlite_db, &notes_dir, false)?;
     } else {
         return Err(format!("Expected .rkyv file or directory: {}", input.display()).into());
     }
@@ -317,6 +371,7 @@ fn batch_export(
     do_sqlite: bool,
     do_csv: bool,
     sqlite_db: &str,
+    notes_dir: &PathBuf,
     batch_mode: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut rkyv_files: Vec<PathBuf> = std::fs::read_dir(dir)?
@@ -354,7 +409,7 @@ fn batch_export(
             }
         }
 
-        match export_single(input, do_sqlite, do_csv, sqlite_db, batch_mode) {
+        match export_single(input, do_sqlite, do_csv, sqlite_db, notes_dir, batch_mode) {
             Ok(()) => exported += 1,
             Err(e) => {
                 let msg = e.to_string();
@@ -376,6 +431,7 @@ fn export_single(
     do_sqlite: bool,
     do_csv: bool,
     sqlite_db: &str,
+    notes_dir: &PathBuf,
     batch_mode: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let json_path = input.with_extension("json");
@@ -405,32 +461,125 @@ fn export_single(
         .unwrap_or("unknown.rkyv");
 
     if do_sqlite {
-        let notes_and_ann = read_notes_json(input);
-        let (notes_content, user_annotations) = match &notes_and_ann {
-            Some((c, a)) => (Some(c as &RecordingNotesContent), a.clone()),
-            None => (None, Vec::new()),
-        };
+        eprintln!("Notes directory: {}", notes_dir.display());
+
         let dt_sec = 1.0 / sample_rate as f64;
         let sync_ann = sync_annotations_from_physics(&records, dt_sec);
-        let (all_annotations, label) = if !user_annotations.is_empty() {
-            prompt_annotations_and_label(&sync_ann, &user_annotations, source_file, batch_mode)?
+
+        let (notes_content, user_annotations, notes_text, start_utc, end_utc) =
+            match read_notes_json(input) {
+                Some((c, a, s, e)) => {
+                    eprintln!("Recording: {} – {}", s, e);
+                    // Only skip acr_notes load when we have actual user content (notes, fields, or non-sync annotations).
+                    // Sync annotations (air_temp, speed_kmh) are regenerated from physics; ignore them here.
+                    let has_user_notes = c.notes.as_ref().map_or(false, |n| !n.trim().is_empty())
+                        || c.laptime.is_some()
+                        || c.result.is_some()
+                        || c.driver_impression.is_some()
+                        || c.tested_parameters.is_some()
+                        || c.conditions.is_some()
+                        || c.setup_notes.is_some()
+                        || c.session_goal.is_some()
+                        || c.incident.is_some();
+                    let has_user_annotations = a.iter().any(|ann| !ann.tag.starts_with("sync_"));
+                    let has_any = has_user_notes || has_user_annotations;
+                    let notes_txt = c.notes.clone().unwrap_or_default();
+                    if has_any {
+                        (
+                            Some(c),
+                            a,
+                            notes_txt,
+                            s,
+                            e,
+                        )
+                    } else {
+                        // Empty .notes.json – try loading from acr_notes
+                        eprintln!(
+                            "Loading notes from {}/acr_notes (filtered by recording time)",
+                            notes_dir.display()
+                        );
+                        match acr_recorder::notes::load_notes_from_acr_notes(
+                            notes_dir,
+                            &s,
+                            &e,
+                        ) {
+                            Ok((notes_body, ann)) => (
+                                Some(RecordingNotesContent {
+                                    notes: if notes_body.is_empty() {
+                                        None
+                                    } else {
+                                        Some(notes_body.clone())
+                                    },
+                                    ..Default::default()
+                                }),
+                                ann,
+                                notes_body,
+                                s,
+                                e,
+                            ),
+                            Err(_) => (None, Vec::new(), String::new(), s, e),
+                        }
+                    }
+                }
+                None => {
+                    eprintln!("No .notes.json found; no recording times available for notes lookup.");
+                    (None, Vec::new(), String::new(), String::new(), String::new())
+                }
+            };
+
+        let flow = if !user_annotations.is_empty() || !notes_text.trim().is_empty() || !batch_mode {
+            prompt_notes_and_label_and_tags(
+                &sync_ann,
+                &user_annotations,
+                &notes_text,
+                source_file,
+                batch_mode,
+            )?
         } else {
-            (sync_ann.clone(), None)
+            NotesFlowResult {
+                notes_content: notes_content.unwrap_or_default(),
+                annotations: sync_ann.clone(),
+                label: None,
+                tags: Vec::new(),
+            }
         };
+
         let rid = acr_recorder::export::sqlite_export::export_to_sqlite(
             sqlite_db,
             source_file,
             &records,
             sample_rate,
             statics.as_ref(),
-            notes_content,
-            if all_annotations.is_empty() {
+            Some(&flow.notes_content),
+            if flow.annotations.is_empty() {
                 None
             } else {
-                Some(&all_annotations)
+                Some(&flow.annotations)
             },
-            label.as_deref(),
+            flow.label.as_deref(),
         )?;
+
+        if !flow.tags.is_empty() {
+            acr_recorder::export::sqlite_export::insert_tags_for_recording(
+                sqlite_db,
+                rid,
+                &flow.tags,
+            )?;
+        }
+
+        // Write final .notes.json (only when we have recording times)
+        if !start_utc.is_empty() && !end_utc.is_empty() {
+            let notes_for_json = flow.notes_content.notes.as_deref().unwrap_or("").to_string();
+            let payload = acr_recorder::notes::RecordingNotesJson {
+                recording_start_utc: start_utc,
+                recording_end_utc: end_utc,
+                notes: notes_for_json,
+                fields: std::collections::HashMap::new(),
+                annotations: flow.annotations,
+            };
+            let _ = acr_recorder::notes::write_notes_json(input, &payload);
+        }
+
         eprintln!("Appended to {} (recording_id={})", sqlite_db, rid);
 
         let graphics_path = input.with_extension("graphics.rkyv");

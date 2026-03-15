@@ -1,10 +1,11 @@
-# acr-voicenote configuration
-# Project dir, CWD, or ~/.config/acr-voicenote/config.toml
+# acr_voicenote configuration
+# Project dir, CWD, or ~/.config/acr_voicenote/config.toml
 
 [output]
-# Output file path. Ignored when notes_dir is set.
+# Output file path (fallback when notes_dir omitted).
 file_path = "c:/temp/acc/voicenotes.txt"
-# For ACR integration: same path as acr_recorder notes_dir.
+# For ACR integration: write to notes_dir/acr_notes. Default: %APPDATA%/acr_telemetry (same as acr_recorder).
+# Omit to use default; set to override:
 notes_dir = "c:/temp/acc/telemetry_notes"
 
 # UDP output (optional)

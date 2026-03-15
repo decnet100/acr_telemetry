@@ -184,6 +184,23 @@ CREATE TABLE IF NOT EXISTS annotations (
     FOREIGN KEY (recording_id) REFERENCES recordings(id)
 );
 CREATE INDEX IF NOT EXISTS idx_annotations_recording ON annotations(recording_id);
+
+-- Tags (user-defined labels for filtering, e.g. "wet", "qualifying", "crash")
+CREATE TABLE IF NOT EXISTS acr_telemetry_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tag_name TEXT UNIQUE NOT NULL
+);
+
+-- Links recordings to tags (many-to-many)
+CREATE TABLE IF NOT EXISTS acr_tag_lookup (
+    recording_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    PRIMARY KEY (recording_id, tag_id),
+    FOREIGN KEY (recording_id) REFERENCES recordings(id),
+    FOREIGN KEY (tag_id) REFERENCES acr_telemetry_tags(id)
+);
+CREATE INDEX IF NOT EXISTS idx_tag_lookup_recording ON acr_tag_lookup(recording_id);
+CREATE INDEX IF NOT EXISTS idx_tag_lookup_tag ON acr_tag_lookup(tag_id);
 "#;
 
 /// Check if a recording with the given source_file is already in the database.
@@ -612,6 +629,49 @@ pub fn export_to_sqlite(
 
     tx.commit()?;
     Ok(recording_id)
+}
+
+/// Insert or get tag by name; returns tag_id.
+fn ensure_tag(tx: &rusqlite::Transaction, tag_name: &str) -> rusqlite::Result<i64> {
+    let trimmed = tag_name.trim();
+    if trimmed.is_empty() {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+    tx.execute("INSERT OR IGNORE INTO acr_telemetry_tags (tag_name) VALUES (?1)", [trimmed])?;
+    let id: i64 = tx.query_row(
+        "SELECT id FROM acr_telemetry_tags WHERE tag_name = ?1",
+        [trimmed],
+        |r| r.get(0),
+    )?;
+    Ok(id)
+}
+
+/// Link a recording to tags. Creates tags if they don't exist.
+pub fn insert_tags_for_recording(
+    db_path: impl AsRef<Path>,
+    recording_id: i64,
+    tags: &[String],
+) -> rusqlite::Result<()> {
+    if tags.is_empty() {
+        return Ok(());
+    }
+    let mut conn = Connection::open(db_path)?;
+    conn.execute_batch(SCHEMA)?;
+    let tx = conn.transaction()?;
+    for tag in tags {
+        let tag = tag.trim();
+        if tag.is_empty() {
+            continue;
+        }
+        if let Ok(tag_id) = ensure_tag(&tx, tag) {
+            let _ = tx.execute(
+                "INSERT OR IGNORE INTO acr_tag_lookup (recording_id, tag_id) VALUES (?1, ?2)",
+                params![recording_id, tag_id],
+            );
+        }
+    }
+    tx.commit()?;
+    Ok(())
 }
 
 fn format_timestamp() -> String {

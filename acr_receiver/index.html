@@ -17,6 +17,7 @@
     .card { background: #1a1a1a; border-radius: 8px; padding: 1rem; text-align: center; }
     .card .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
     .card .value { font-size: 1.5rem; font-weight: 600; margin-top: 0.25rem; }
+    .card .minmax { font-size: 0.65rem; color: #666; margin-top: 0.2rem; }
     .status { font-size: 0.75rem; color: #555; margin-top: 1rem; }
   </style>
 </head>
@@ -103,7 +104,7 @@
         card.className = 'card';
         card.id = 'slot_' + i;
         card.dataset.field = s.field;
-        card.innerHTML = '<div class="label">' + label + suffix + '</div><div class="value">-</div>';
+        card.innerHTML = '<div class="label">' + label + suffix + '</div><div class="value">-</div><div class="minmax" id="minmax_' + i + '"></div>';
         grid.appendChild(card);
       });
     }
@@ -118,6 +119,17 @@
         const numVal = typeof val === 'number' ? val : (val != null ? parseFloat(val) : NaN);
         const level = levelForValue(s.field, Number.isFinite(numVal) ? numVal : null);
         valEl.style.color = colorForLevel(level);
+        const minVal = getValue(d, s.field + '_min');
+        const maxVal = getValue(d, s.field + '_max');
+        const minmaxEl = card.querySelector('.minmax');
+        if (minmaxEl) {
+          if (minVal != null && maxVal != null && Number.isFinite(minVal) && Number.isFinite(maxVal)) {
+            minmaxEl.textContent = 'min ' + formatValue(minVal, def) + ' · max ' + formatValue(maxVal, def);
+            minmaxEl.style.display = '';
+          } else {
+            minmaxEl.style.display = 'none';
+          }
+        }
       });
       
       // Update recorder status indicator
