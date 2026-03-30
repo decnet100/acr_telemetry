@@ -80,7 +80,7 @@ All Temperatures are given as Kelvin by the game, any reference to °C is a late
 | `tyre_wear` | Tyre wear | no | constant (no data) |
 | `tyre_dirty_level` | Tyre dirt level | no | constant (no data) |
 | `camber_rad` | Camber (rad) | no | constant (no data) |
-| `suspension_travel` | *Suspension travel | yes | ~−0.04 … 0.24 m (≈ −40 … 240 mm) |
+| `suspension_travel` | *Suspension travel | yes | ~−0.04 … 0.24 m (≈ −40 … 240 mm), theoretically: 0.0 = fully extended, >0: compression - outlier values caused by lag etc.?? |
 | `brake_pressure` | Brake pressure (bar) | no | usually off, but I once got data there??? ~0.001 … 0.58 front, ~0.0006 … 0.30 rear |
 | `slip_ratio` | Slip ratio, longitudinal slip (=wheel speed/vehicle speed?)  | yes | ~−10 … 24 |
 | `slip_angle` | Slip angle, lateral slip | yes | ~−1.5 … 1.5 rad |

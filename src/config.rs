@@ -106,11 +106,11 @@ fn default_temperature_unit() -> String {
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct RecorderConfig {
-    /// Directory for raw .rkyv recordings (relative to CWD or absolute).
+    /// Directory for raw .rkyv recordings (relative to executable directory or absolute).
     #[serde(default = "default_raw_output_dir")]
     pub raw_output_dir: String,
     /// Path to stop file. Creating this file signals acr_recorder to exit.
-    /// Relative to CWD or absolute. Empty = %APPDATA%/acr_telemetry/acr_stop (Windows) or ~/.config/acr_telemetry/acr_stop (Linux).
+    /// Relative to executable directory or absolute. Empty = %APPDATA%/acr_telemetry/acr_stop (Windows) or ~/.config/acr_telemetry/acr_stop (Linux).
     #[serde(default)]
     pub stop_file_path: Option<String>,
     /// Directory for acr_notes and acr_elapsed_secs (batch scripts). Empty = %APPDATA%/acr_telemetry.
@@ -141,7 +141,7 @@ pub struct ExportConfig {
     /// Default export method: "csv" or "sqlite"
     #[serde(default = "default_export_method")]
     pub default_method: String,
-    /// Default path for SQLite database (relative to CWD or absolute).
+    /// Default path for SQLite database (relative to executable directory or absolute).
     #[serde(default = "default_sqlite_path")]
     pub sqlite_db_path: String,
 }
@@ -168,8 +168,9 @@ fn default_sqlite_path() -> String {
 }
 
 /// Load config from standard locations:
-/// 1. ./acr_recorder.toml (current working directory)
-/// 2. ~/.config/acr_recorder/config.toml
+/// 1. acr_recorder.toml next to the executable
+/// 2. ./acr_recorder.toml (current working directory)
+/// 3. ~/.config/acr_recorder/config.toml
 pub fn load_config() -> Config {
     let paths = config_paths();
     for path in paths {
@@ -187,6 +188,9 @@ pub fn load_config() -> Config {
 
 fn config_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
+    if let Some(exe_dir) = base_dir() {
+        paths.push(exe_dir.join("acr_recorder.toml"));
+    }
     if let Ok(cwd) = std::env::current_dir() {
         paths.push(cwd.join("acr_recorder.toml"));
     }
@@ -249,13 +253,20 @@ pub fn resolve_notes_dir(cfg: &RecorderConfig) -> PathBuf {
     }
 }
 
-/// Resolve a path (relative or absolute). Relative paths are resolved against CWD.
+/// Base directory for resolving relative config paths: executable directory, or CWD if unavailable.
+fn base_dir() -> Option<PathBuf> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+}
+
+/// Resolve a path (relative or absolute). Relative paths are resolved against the executable's directory (fallback: CWD).
 pub fn resolve_path(s: &str) -> PathBuf {
     let p = Path::new(s);
     if p.is_absolute() {
         p.to_path_buf()
-    } else if let Ok(cwd) = std::env::current_dir() {
-        cwd.join(p)
+    } else if let Some(base) = base_dir().or_else(|| std::env::current_dir().ok()) {
+        base.join(p)
     } else {
         p.to_path_buf()
     }
