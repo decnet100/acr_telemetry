@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::{Seek, SeekFrom, Write};
 use std::path::Path;
 
-use crate::record::PhysicsRecord;
+use crate::record::{GraphicsRecord, PhysicsRecord};
 
 const REC_FREQ: u16 = 333;
 
@@ -14,7 +14,17 @@ const REC_FREQ: u16 = 333;
 pub fn write_ld(
     path: impl AsRef<Path>,
     records: &[PhysicsRecord],
+    sample_rate_hz: u32,
+) -> std::io::Result<()> {
+    write_ld_with_graphics(path, records, sample_rate_hz, None)
+}
+
+/// Write physics records (+ optional graphics sidecar channels) to MoTeC .ld format.
+pub fn write_ld_with_graphics(
+    path: impl AsRef<Path>,
+    records: &[PhysicsRecord],
     _sample_rate_hz: u32,
+    graphics: Option<(&[GraphicsRecord], u32)>,
 ) -> std::io::Result<()> {
     let mut f = File::create(path)?;
 
@@ -28,70 +38,132 @@ pub fn write_ld(
     let brake: Vec<f32> = records.iter().map(|r| r.brake * 100.0).collect();
     let steer: Vec<f32> = records.iter().map(|r| r.steer_angle).collect();
     let gear: Vec<f32> = records.iter().map(|r| r.gear as f32).collect();
-    let lat_g: Vec<f32> = records.iter().map(|r| r.g_force.y).collect();
-    let lon_g: Vec<f32> = records.iter().map(|r| r.g_force.x).collect();
-    let fuel: Vec<f32> = records.iter().map(|r| r.fuel).collect();
-    let fl_temp: Vec<f32> = records.iter().map(|r| r.tyre_core_temp.front_left).collect();
-    let fr_temp: Vec<f32> = records.iter().map(|r| r.tyre_core_temp.front_right).collect();
-    let rl_temp: Vec<f32> = records.iter().map(|r| r.tyre_core_temp.rear_left).collect();
-    let rr_temp: Vec<f32> = records.iter().map(|r| r.tyre_core_temp.rear_right).collect();
-    let engine_brake: Vec<f32> = records.iter().map(|r| r.engine_brake as f32).collect();
-    let tc_active: Vec<f32> = records.iter().map(|r| if r.tc_in_action { 1.0 } else { 0.0 }).collect();
-    let abs_active: Vec<f32> = records.iter().map(|r| if r.abs_in_action { 1.0 } else { 0.0 }).collect();
-    let fl_load: Vec<f32> = records.iter().map(|r| r.wheel_load.front_left).collect();
-    let fr_load: Vec<f32> = records.iter().map(|r| r.wheel_load.front_right).collect();
-    let rl_load: Vec<f32> = records.iter().map(|r| r.wheel_load.rear_left).collect();
-    let rr_load: Vec<f32> = records.iter().map(|r| r.wheel_load.rear_right).collect();
-    let fl_camber: Vec<f32> = records.iter().map(|r| r.camber_rad.front_left).collect();
-    let fr_camber: Vec<f32> = records.iter().map(|r| r.camber_rad.front_right).collect();
-    let rl_camber: Vec<f32> = records.iter().map(|r| r.camber_rad.rear_left).collect();
-    let rr_camber: Vec<f32> = records.iter().map(|r| r.camber_rad.rear_right).collect();
+    let g_lat: Vec<f32> = records.iter().map(|r| r.g_force.x).collect();
+    let g_lon: Vec<f32> = records.iter().map(|r| r.g_force.y).collect();
+    let g_total: Vec<f32> = records
+        .iter()
+        .map(|r| (r.g_force.x * r.g_force.x + r.g_force.y * r.g_force.y).sqrt())
+        .collect();
+    let lf_deflection: Vec<f32> = records.iter().map(|r| r.suspension_travel.front_left).collect();
+    let rf_deflection: Vec<f32> = records.iter().map(|r| r.suspension_travel.front_right).collect();
+    let lb_deflection: Vec<f32> = records.iter().map(|r| r.suspension_travel.rear_left).collect();
+    let rb_deflection: Vec<f32> = records.iter().map(|r| r.suspension_travel.rear_right).collect();
+    // Workspace-compatible aliases (RBR Motec v105).
+    let speed_alias: Vec<f32> = speed.clone();
+    let throttle_alias: Vec<f32> = records.iter().map(|r| r.gas).collect();
+    let brake_alias: Vec<f32> = records.iter().map(|r| r.brake).collect();
+    let engine_rotation_alias: Vec<f32> = records
+        .iter()
+        .map(|r| r.rpm as f32 * std::f32::consts::TAU / 60.0)
+        .collect();
+    let gear_ok_alias: Vec<f32> = records.iter().map(|r| (r.gear - 1) as f32).collect();
+    let lf_tyre_temp_c: Vec<f32> = records
+        .iter()
+        .map(|r| r.tyre_core_temp.front_left - 273.15)
+        .collect();
+    let rf_tyre_temp_c: Vec<f32> = records
+        .iter()
+        .map(|r| r.tyre_core_temp.front_right - 273.15)
+        .collect();
+    let lb_tyre_temp_c: Vec<f32> = records
+        .iter()
+        .map(|r| r.tyre_core_temp.rear_left - 273.15)
+        .collect();
+    let rb_tyre_temp_c: Vec<f32> = records
+        .iter()
+        .map(|r| r.tyre_core_temp.rear_right - 273.15)
+        .collect();
+    const PSI_TO_BAR: f32 = 0.068_947_57;
+    let lf_pressure_bar: Vec<f32> = records
+        .iter()
+        .map(|r| r.wheel_pressure.front_left * PSI_TO_BAR)
+        .collect();
+    let rf_pressure_bar: Vec<f32> = records
+        .iter()
+        .map(|r| r.wheel_pressure.front_right * PSI_TO_BAR)
+        .collect();
+    let lb_pressure_bar: Vec<f32> = records
+        .iter()
+        .map(|r| r.wheel_pressure.rear_left * PSI_TO_BAR)
+        .collect();
+    let rb_pressure_bar: Vec<f32> = records
+        .iter()
+        .map(|r| r.wheel_pressure.rear_right * PSI_TO_BAR)
+        .collect();
+    let lf_brake_temp_c: Vec<f32> = records.iter().map(|r| r.brake_temp.front_left - 273.15).collect();
+    let rf_brake_temp_c: Vec<f32> = records.iter().map(|r| r.brake_temp.front_right - 273.15).collect();
+    let lb_brake_temp_c: Vec<f32> = records.iter().map(|r| r.brake_temp.rear_left - 273.15).collect();
+    let rb_brake_temp_c: Vec<f32> = records.iter().map(|r| r.brake_temp.rear_right - 273.15).collect();
+    let lf_tyre_wear_pct: Vec<f32> = records.iter().map(|r| r.tyre_wear.front_left * 100.0).collect();
+    let rf_tyre_wear_pct: Vec<f32> = records.iter().map(|r| r.tyre_wear.front_right * 100.0).collect();
+    let lb_tyre_wear_pct: Vec<f32> = records.iter().map(|r| r.tyre_wear.rear_left * 100.0).collect();
+    let rb_tyre_wear_pct: Vec<f32> = records.iter().map(|r| r.tyre_wear.rear_right * 100.0).collect();
 
-    let channels: &[(&str, &str, &[f32])] = &[
-        ("Time", "s", &time),
-        ("Speed", "km/h", &speed),
-        ("RPM", "rpm", &rpm),
-        ("Throttle", "%", &throttle),
-        ("Brake", "%", &brake),
-        ("Steer", "deg", &steer),
-        ("Gear", "", &gear),
-        ("Lat G", "g", &lat_g),
-        ("Lon G", "g", &lon_g),
-        ("Fuel", "", &fuel), // "L" not in MoTeC unit DB – use unitless
-        ("FL Tyre Temp", "C", &fl_temp),
-        ("FR Tyre Temp", "C", &fr_temp),
-        ("RL Tyre Temp", "C", &rl_temp),
-        ("RR Tyre Temp", "C", &rr_temp),
-        ("Engine Brake", "", &engine_brake),
-        ("TC Active", "", &tc_active),
-        ("ABS Active", "", &abs_active),
-        ("FL Load", "N", &fl_load),
-        ("FR Load", "N", &fr_load),
-        ("RL Load", "N", &rl_load),
-        ("RR Load", "N", &rr_load),
-        ("FL Camber", "rad", &fl_camber),
-        ("FR Camber", "rad", &fr_camber),
-        ("RL Camber", "rad", &rl_camber),
-        ("RR Camber", "rad", &rr_camber),
+    let mut channels: Vec<(&str, &str, Vec<f32>)> = vec![
+        ("Time", "s", time),
+        ("Speed", "km/h", speed),
+        ("RPM", "rpm", rpm),
+        ("Throttle", "%", throttle),
+        ("Brake", "%", brake),
+        // RBR Motec workspace expects this exact channel id.
+        ("steering", "", steer),
+        ("Gear", "", gear),
+        ("speed", "km/h", speed_alias),
+        ("throttle", "", throttle_alias),
+        ("brake", "", brake_alias),
+        ("engineRotation", "rad/s", engine_rotation_alias),
+        ("gear_ok", "", gear_ok_alias),
+        ("vecLinearAccelerationCar.x", "g", g_lat),
+        ("vecLinearAccelerationCar.y", "g", g_lon),
+        ("G ForceTotal", "g", g_total),
+        ("LF.deflection", "m", lf_deflection),
+        ("RF.deflection", "m", rf_deflection),
+        ("LB.deflection", "m", lb_deflection),
+        ("RB.deflection", "m", rb_deflection),
+        ("LF.tyreTemperature", "C", lf_tyre_temp_c),
+        ("RF.tyreTemperature", "C", rf_tyre_temp_c),
+        ("LB.tyreTemperature", "C", lb_tyre_temp_c),
+        ("RB.tyreTemperature", "C", rb_tyre_temp_c),
+        ("LF.pressure", "bar", lf_pressure_bar),
+        ("RF.pressure", "bar", rf_pressure_bar),
+        ("LB.pressure", "bar", lb_pressure_bar),
+        ("RB.pressure", "bar", rb_pressure_bar),
+        ("LF.brakeDiskTempC", "C", lf_brake_temp_c),
+        ("RF.brakeDiskTempC", "C", rf_brake_temp_c),
+        ("LB.brakeDiskTempC", "C", lb_brake_temp_c),
+        ("RB.brakeDiskTempC", "C", rb_brake_temp_c),
+        ("LF.tyreWear%", "%", lf_tyre_wear_pct),
+        ("RF.tyreWear%", "%", rf_tyre_wear_pct),
+        ("LB.tyreWear%", "%", lb_tyre_wear_pct),
+        ("RB.tyreWear%", "%", rb_tyre_wear_pct),
     ];
+
+    if let Some((graphics_records, _graphics_hz)) = graphics {
+        if !graphics_records.is_empty() {
+            let gx = resample_graphics_to_len(graphics_records, records.len(), |g| g.car_coordinates_x);
+            let gy = resample_graphics_to_len(graphics_records, records.len(), |g| g.car_coordinates_y);
+            channels.push(("position.x", "m", gx));
+            channels.push(("position.y", "m", gy));
+        }
+    }
 
     // Layout (from ldparser)
     // ldHead: 1762 bytes
-    // ldEvent: 1154 bytes (if event_ptr > 0)
-    // We use event_ptr = 0 to skip event block
-    let event_ptr: u32 = 0;
     let head_size = 1762u32;
+    // ldEvent: 1154 bytes
+    // Keep a minimal event block to maximize i2 compatibility.
+    let event_ptr: u32 = head_size;
     let event_size = 1154u32;
     let chan_head_size = 124u32; // ldChan struct size from ldparser
 
-    let meta_ptr = head_size + if event_ptr > 0 { event_size } else { 0 };
+    let meta_ptr = head_size + event_size;
     let data_ptr = meta_ptr + channels.len() as u32 * chan_head_size;
 
     // Calculate data offsets per channel
     let _n = records.len() as u32;
     let mut data_offsets = Vec::with_capacity(channels.len());
     let mut offset = data_ptr;
-    for (_, _, data) in channels {
+    for (_, _, data) in &channels {
         data_offsets.push(offset);
         offset += data.len() as u32 * 4; // f32 = 4 bytes
     }
@@ -99,7 +171,10 @@ pub fn write_ld(
     // Write ldHead
     write_ld_head(&mut f, meta_ptr, data_ptr, event_ptr, channels.len() as u32)?;
 
-    // Write ldEvent block (zeros if event_ptr=0,但我们已跳过)
+    // Write ldEvent block.
+    f.seek(SeekFrom::Start(event_ptr as u64))?;
+    write_ld_event(&mut f)?;
+
     // Seek to meta region and write channel headers
     f.seek(SeekFrom::Start(meta_ptr as u64))?;
     for (i, ((name, unit, data), &data_off)) in channels.iter().zip(data_offsets.iter()).enumerate() {
@@ -113,8 +188,8 @@ pub fn write_ld(
     }
 
     // Write channel data
-    for (_, _, data) in channels {
-        for &v in *data {
+    for (_, _, data) in &channels {
+        for &v in data {
             f.write_all(&v.to_le_bytes())?;
         }
     }
@@ -187,6 +262,15 @@ fn write_ld_head(
     Ok(())
 }
 
+fn write_ld_event(f: &mut File) -> std::io::Result<()> {
+    // ldEvent format in ldparser: <64s64s1024sH
+    write_str_fixed(f, "ACR Session", 64)?;
+    write_str_fixed(f, "0", 64)?;
+    write_str_fixed(f, "acr_recorder synthetic/minimal export", 1024)?;
+    f.write_all(&0u16.to_le_bytes())?; // venue_ptr = 0 (no venue block)
+    Ok(())
+}
+
 fn days_to_ymd(days: u64) -> (u32, u32, u32) {
     const EPOCH: i64 = 719163;
     let j = days as i64 + EPOCH;
@@ -237,4 +321,26 @@ fn write_ld_chan(
     pad(f, 40)?;
 
     Ok(())
+}
+
+fn resample_graphics_to_len(
+    graphics: &[GraphicsRecord],
+    target_len: usize,
+    getter: impl Fn(&GraphicsRecord) -> f32,
+) -> Vec<f32> {
+    if target_len == 0 || graphics.is_empty() {
+        return Vec::new();
+    }
+    if target_len == 1 {
+        return vec![getter(&graphics[0])];
+    }
+    if graphics.len() == 1 {
+        return vec![getter(&graphics[0]); target_len];
+    }
+    (0..target_len)
+        .map(|i| {
+            let src_idx = i * (graphics.len() - 1) / (target_len - 1);
+            getter(&graphics[src_idx])
+        })
+        .collect()
 }

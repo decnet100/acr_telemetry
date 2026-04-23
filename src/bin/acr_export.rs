@@ -608,6 +608,7 @@ fn export_single(
         w.flush()?;
         eprintln!("Wrote {}", csv_path.display());
 
+        let mut ld_graphics: Option<(Vec<acr_recorder::record::GraphicsRecord>, u32)> = None;
         let graphics_path = input.with_extension("graphics.rkyv");
         if graphics_path.exists() {
             let (graphics_sample_rate, graphics_records) =
@@ -622,13 +623,22 @@ fn export_single(
             )?;
             w.flush()?;
             eprintln!("Wrote {}", graphics_csv_path.display());
+            ld_graphics = Some((graphics_records, graphics_sample_rate));
         }
+        // LD always with CSV for single-file
+        let ld_path = out_dir.join(format!("{}.ld", stem));
+        if let Some((graphics_records, graphics_sample_rate)) = ld_graphics.as_ref() {
+            acr_recorder::export::motec_ld::write_ld_with_graphics(
+                &ld_path,
+                &records,
+                sample_rate,
+                Some((graphics_records.as_slice(), *graphics_sample_rate)),
+            )?;
+        } else {
+            acr_recorder::export::motec_ld::write_ld(&ld_path, &records, sample_rate)?;
+        }
+        eprintln!("Wrote {}", ld_path.display());
     }
-
-    // LD always with CSV for single-file
-    let ld_path = out_dir.join(format!("{}.ld", stem));
-    acr_recorder::export::motec_ld::write_ld(&ld_path, &records, sample_rate)?;
-    eprintln!("Wrote {}", ld_path.display());
 
     Ok(())
 }

@@ -3,7 +3,14 @@
 Introductory video:
 https://youtu.be/IYoPnljtn9o
 
-Telemetry recording and analysis for **Assetto Corsa Competizione (ACC)** and **Assetto Corsa Rally**. Records physics data at ~333 Hz and exports to CSV, MoTeC LD (not working yet!! help needed by someone who knows that data format), or SQLite for Grafana dashboards.
+Telemetry recording and analysis for **Assetto Corsa Competizione (ACC)** and **Assetto Corsa Rally**. Records physics data at ~333 Hz and exports to CSV, MoTeC LD (minimal working PoC), or SQLite for Grafana dashboards.
+
+### MoTeC LD status (current)
+
+- The LD export is currently a **minimal compatible implementation** (validated with MoTeC i2 + RBR Motec v105 workspace).
+- Core channels and several RBR workspace-compatible aliases are exported (e.g. `speed`, `throttle`, `brake`, `steering`, `engineRotation`, `gear_ok`, G-force and selected suspension/tyre channels).
+- This is still a staged rollout; not all workspace channels are mapped yet.
+- Feedback is very welcome: if a channel looks wrong or missing, please open an issue and include the `.rkyv` filename and workspace used.
 
 ## Project Structure
 

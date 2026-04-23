@@ -4,7 +4,7 @@
 
 - **SQLite** – for use with Grafana (recommended for analysis). Fills `recordings`, `physics`, `statics`, `graphics`, `recording_notes`, and `annotations`.
 - **CSV** – MoTeC-style CSV plus a separate graphics CSV if a `.graphics.rkyv` sidecar exists.
-- **MoTeC LD** – always written when exporting to CSV (single-file mode). LD export is experimental and may not load correctly in MoTeC tools.
+- **MoTeC LD** – always written when exporting to CSV (single-file mode). LD export is currently a minimal working PoC and has been validated with MoTeC i2 + RBR Motec v105 workspace.
 
 You must choose **either** `--csv` or `--sqlite`; they cannot be combined in one run.
 
