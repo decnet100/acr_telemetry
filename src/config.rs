@@ -119,10 +119,55 @@ pub struct RecorderConfig {
     /// Record GraphicsMap data (~60 Hz) alongside physics. Used for Grafana (e.g. distance_traveled).
     #[serde(default = "default_record_graphics")]
     pub record_graphics: bool,
+    /// Enable ring mode: recorder runs continuously and rotates between slot files.
+    #[serde(default)]
+    pub ring_mode: bool,
+    /// Number of ring slot files to keep (minimum 2 when ring mode is enabled).
+    #[serde(default = "default_ring_slots")]
+    pub ring_slots: usize,
+    /// Prefix for ring slot files and state file.
+    #[serde(default = "default_ring_prefix")]
+    pub ring_prefix: String,
+    /// Rotate to next ring slot when distance_traveled resets near lap start.
+    #[serde(default = "default_rotate_on_distance_reset")]
+    pub rotate_on_distance_reset: bool,
+    /// Previous distance must be >= this value to consider a reset valid.
+    #[serde(default = "default_distance_reset_min_prev_m")]
+    pub distance_reset_min_prev_m: f32,
+    /// Current distance must be <= this value to consider a reset valid.
+    #[serde(default = "default_distance_reset_max_curr_m")]
+    pub distance_reset_max_curr_m: f32,
+    /// Minimum seconds between two rotations to avoid duplicate triggers.
+    #[serde(default = "default_distance_reset_cooldown_secs")]
+    pub distance_reset_cooldown_secs: u64,
 }
 
 fn default_record_graphics() -> bool {
     true
+}
+
+fn default_ring_slots() -> usize {
+    8
+}
+
+fn default_ring_prefix() -> String {
+    "acc_ring".into()
+}
+
+fn default_rotate_on_distance_reset() -> bool {
+    true
+}
+
+fn default_distance_reset_min_prev_m() -> f32 {
+    200.0
+}
+
+fn default_distance_reset_max_curr_m() -> f32 {
+    30.0
+}
+
+fn default_distance_reset_cooldown_secs() -> u64 {
+    8
 }
 
 impl Default for RecorderConfig {
@@ -132,6 +177,13 @@ impl Default for RecorderConfig {
             stop_file_path: None,
             notes_dir: None,
             record_graphics: true,
+            ring_mode: false,
+            ring_slots: default_ring_slots(),
+            ring_prefix: default_ring_prefix(),
+            rotate_on_distance_reset: default_rotate_on_distance_reset(),
+            distance_reset_min_prev_m: default_distance_reset_min_prev_m(),
+            distance_reset_max_curr_m: default_distance_reset_max_curr_m(),
+            distance_reset_cooldown_secs: default_distance_reset_cooldown_secs(),
         }
     }
 }

@@ -10,6 +10,17 @@ notes_dir = "c:/temp/acc/telemetry_notes"
 # Record GraphicsMap (~60 Hz) alongside physics. Used for Grafana (e.g. distance_traveled).
 # Set to false to save disk space or if you don't need graphics. CLI: --no-graphics overrides.
 record_graphics = true
+# Continuous ring mode: keep rotating slot files instead of timestamped one-shot files.
+ring_mode = false
+# Number of files in the ring (oldest gets overwritten after wrap-around).
+ring_slots = 8
+# File prefix: <prefix>_slot_00.rkyv ... and <prefix>.state.json for exporter helpers.
+ring_prefix = "acc_ring"
+# Rotate when graphics.distance_traveled resets from a high value to near zero.
+rotate_on_distance_reset = true
+distance_reset_min_prev_m = 200.0
+distance_reset_max_curr_m = 30.0
+distance_reset_cooldown_secs = 8
 
 [export]
 # Default export method: "csv" or "sqlite"

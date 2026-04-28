@@ -8,6 +8,7 @@
 //! If --csv/--sqlite omitted, uses config default_method.
 //! Batch mode skips files that already have output (CSV exists or recording in DB).
 
+use std::convert::TryInto;
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
@@ -15,9 +16,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use acr_recorder::config;
+use acr_recorder::export::subtiming::{compute_subtiming_markers, write_subtiming_shapefile, ShpSample, SubtimingParams};
 use acr_recorder::export::sqlite_export::RecordingNotesContent;
 use acr_recorder::notes::{Annotation, RecordingNotesJson};
 use acr_recorder::record::PhysicsRecord;
+use shapefile::dbase::{FieldValue, Record, TableWriterBuilder};
+use shapefile::{Point, Writer};
 
 /// Build annotations for time synchronization from physics: first air_temp > 0, first speed_kmh > 0,
 /// and each time air_temp crosses from <= 0 to > 0 (e.g. after returning to menu and re-entering).
@@ -271,7 +275,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cfg = config::load_config();
 
-    let (use_raw_dir, path_arg, do_sqlite, do_csv, sqlite_db) = parse_args(&args, &cfg)?;
+    let (use_raw_dir, path_arg, do_sqlite, do_csv, do_shp, sqlite_db, downsample, subtiming) =
+        parse_args(&args, &cfg)?;
     let input: PathBuf = if use_raw_dir {
         config::resolve_path(&cfg.recorder.raw_output_dir)
     } else if let Some(p) = path_arg {
@@ -287,9 +292,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let notes_dir = config::resolve_notes_dir(&cfg.recorder);
     if input.is_dir() {
-        batch_export(&input, do_sqlite, do_csv, &sqlite_db, &notes_dir, true)?;
+        batch_export(
+            &input,
+            do_sqlite,
+            do_csv,
+            do_shp,
+            &sqlite_db,
+            &notes_dir,
+            true,
+            downsample,
+            subtiming.as_ref(),
+        )?;
     } else if input.extension().map_or(false, |e| e == "rkyv") {
-        export_single(&input, do_sqlite, do_csv, &sqlite_db, &notes_dir, false)?;
+        export_single(
+            &input,
+            do_sqlite,
+            do_csv,
+            do_shp,
+            &sqlite_db,
+            &notes_dir,
+            false,
+            downsample,
+            subtiming.as_ref(),
+        )?;
     } else {
         return Err(format!("Expected .rkyv file or directory: {}", input.display()).into());
     }
@@ -300,12 +325,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn parse_args(
     args: &[String],
     cfg: &config::Config,
-) -> Result<(bool, Option<String>, bool, bool, String), Box<dyn std::error::Error>> {
+) -> Result<
+    (
+        bool,
+        Option<String>,
+        bool,
+        bool,
+        bool,
+        String,
+        usize,
+        Option<SubtimingParams>,
+    ),
+    Box<dyn std::error::Error>,
+> {
     let mut use_raw_dir = false;
     let mut path_arg = None;
     let mut do_sqlite = false;
     let mut do_csv = false;
+    let mut do_shp = false;
     let mut sqlite_db = String::new();
+    let mut downsample: usize = 10;
+    let mut subtiming: Option<SubtimingParams> = None;
     let mut i = 1;
 
     while i < args.len() {
@@ -324,27 +364,84 @@ fn parse_args(
             }
         } else if a == "--csv" {
             do_csv = true;
+        } else if a == "--shp" || a == "--shape" || a == "--shapefile" {
+            do_shp = true;
+        } else if a == "--subtiming" {
+            subtiming.get_or_insert_with(SubtimingParams::default);
+        } else if a == "--subtiming-speed" {
+            let v = args
+                .get(i + 1)
+                .ok_or("--subtiming-speed needs km/h value")?
+                .parse::<f64>()?;
+            subtiming.get_or_insert_with(SubtimingParams::default).speed_min_kmh = v;
+            i += 1;
+        } else if a == "--subtiming-steer" {
+            let v = args
+                .get(i + 1)
+                .ok_or("--subtiming-steer needs max |steer| value")?
+                .parse::<f64>()?;
+            subtiming.get_or_insert_with(SubtimingParams::default).steer_max_abs = v;
+            i += 1;
+        } else if a == "--subtiming-min-m" {
+            let v = args
+                .get(i + 1)
+                .ok_or("--subtiming-min-m needs meters")?
+                .parse::<f64>()?;
+            subtiming.get_or_insert_with(SubtimingParams::default).min_run_m = v;
+            i += 1;
+        } else if a == "--subtiming-min-sec" {
+            let v = args
+                .get(i + 1)
+                .ok_or("--subtiming-min-sec needs seconds")?
+                .parse::<f64>()?;
+            subtiming.get_or_insert_with(SubtimingParams::default).min_run_sec = v;
+            i += 1;
+        } else if a == "--subtiming-merge-m" {
+            let v = args
+                .get(i + 1)
+                .ok_or("--subtiming-merge-m needs meters")?
+                .parse::<f64>()?;
+            subtiming.get_or_insert_with(SubtimingParams::default).merge_close_m = v;
+            i += 1;
+        } else if a == "--subtiming-temporal-merge" {
+            subtiming.get_or_insert_with(SubtimingParams::default).use_chain_order_merge = false;
+        } else if a == "--downsample" {
+            if i + 1 >= args.len() {
+                return Err("--downsample requires a positive integer value".into());
+            }
+            let value = args[i + 1].parse::<usize>()?;
+            if value == 0 {
+                return Err("--downsample must be >= 1".into());
+            }
+            downsample = value;
+            i += 1;
         } else if !a.starts_with('-') && path_arg.is_none() {
             path_arg = Some(a.clone());
         }
         i += 1;
     }
 
-    let (do_sqlite, do_csv) = match (do_sqlite, do_csv) {
-        (true, true) => return Err("Use either --csv or --sqlite, not both".into()),
-        (true, false) => (true, false),
-        (false, true) => (false, true),
-        (false, false) => match cfg.export.default_method.to_lowercase().as_str() {
+    if (do_sqlite as u8 + do_csv as u8 + do_shp as u8) > 1 {
+        return Err("Use exactly one export format: --csv, --sqlite, or --shp".into());
+    }
+
+    let (do_sqlite, do_csv, do_shp) = match (do_sqlite, do_csv, do_shp) {
+        (true, false, false) => (true, false, false),
+        (false, true, false) => (false, true, false),
+        (false, false, true) => (false, false, true),
+        (false, false, false) => match cfg.export.default_method.to_lowercase().as_str() {
             "sqlite" => {
                 if sqlite_db.is_empty() {
                     sqlite_db = config::resolve_path(&cfg.export.sqlite_db_path)
                         .to_string_lossy()
                         .into_owned();
                 }
-                (true, false)
+                (true, false, false)
             }
-            _ => (false, true),
+            "shp" | "shape" | "shapefile" => (false, false, true),
+            _ => (false, true, false),
         },
+        _ => unreachable!("format combination already validated"),
     };
 
     if do_sqlite && sqlite_db.is_empty() {
@@ -353,16 +450,36 @@ fn parse_args(
             .into_owned();
     }
 
-    Ok((use_raw_dir, path_arg, do_sqlite, do_csv, sqlite_db))
+    if subtiming.is_some() && !do_shp {
+        return Err("--subtiming (or any --subtiming-*) requires --shp export mode".into());
+    }
+
+    Ok((
+        use_raw_dir,
+        path_arg,
+        do_sqlite,
+        do_csv,
+        do_shp,
+        sqlite_db,
+        downsample,
+        subtiming,
+    ))
 }
 
 fn print_usage() {
-    eprintln!("Usage: acr_export [--rawDir] [<input.rkyv|directory>] [--csv | --sqlite [db_path]]");
+    eprintln!("Usage: acr_export [--rawDir] [<input.rkyv|directory>] [--csv | --sqlite [db_path] | --shp] [--downsample N]");
     eprintln!("       --rawDir: use configured raw_output_dir, batch export (skips already exported)");
     eprintln!("       Batch: pass directory (or --rawDir) to export all .rkyv");
     eprintln!("       Single: pass .rkyv file");
     eprintln!("       --csv: export to CSV/LD (default if not configured)");
     eprintln!("       --sqlite [path]: export to SQLite (default path from config)");
+    eprintln!("       --shp: export point Shapefile from <input>.graphics.rkyv");
+    eprintln!("       --downsample N: keep every N-th graphics sample for --shp (default: 10)");
+    eprintln!("       --subtiming: with --shp, also write <stem>.subtiming.shp (midpoints; merge order = lap + dist_m)");
+    eprintln!("         Straight = speed > 50 km/h and |steer| < 0.1 (defaults; override below)");
+    eprintln!("         Run kept if length >= 80 m OR duration >= 2 s; merge markers closer than 40 m (keep first)");
+    eprintln!("       --subtiming-speed / --subtiming-steer / --subtiming-min-m / --subtiming-min-sec / --subtiming-merge-m");
+    eprintln!("       --subtiming-temporal-merge: merge duplicates in time order only (no lap+dist_m sort)");
     eprintln!("       Config: ./acr_recorder.toml or ~/.config/acr_recorder/config.toml");
 }
 
@@ -370,9 +487,12 @@ fn batch_export(
     dir: &Path,
     do_sqlite: bool,
     do_csv: bool,
+    do_shp: bool,
     sqlite_db: &str,
     notes_dir: &PathBuf,
     batch_mode: bool,
+    downsample: usize,
+    subtiming: Option<&SubtimingParams>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut rkyv_files: Vec<PathBuf> = std::fs::read_dir(dir)?
         .filter_map(|e| e.ok())
@@ -408,8 +528,26 @@ fn batch_export(
                 continue;
             }
         }
+        if do_shp {
+            let shp_path = input.with_extension("points.shp");
+            if shp_path.exists() {
+                eprintln!("Skip (SHP exists): {}", input.display());
+                skipped += 1;
+                continue;
+            }
+        }
 
-        match export_single(input, do_sqlite, do_csv, sqlite_db, notes_dir, batch_mode) {
+        match export_single(
+            input,
+            do_sqlite,
+            do_csv,
+            do_shp,
+            sqlite_db,
+            notes_dir,
+            batch_mode,
+            downsample,
+            subtiming,
+        ) {
             Ok(()) => exported += 1,
             Err(e) => {
                 let msg = e.to_string();
@@ -430,9 +568,12 @@ fn export_single(
     input: &Path,
     do_sqlite: bool,
     do_csv: bool,
+    do_shp: bool,
     sqlite_db: &str,
     notes_dir: &PathBuf,
     batch_mode: bool,
+    downsample: usize,
+    subtiming: Option<&SubtimingParams>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let json_path = input.with_extension("json");
     let statics = std::fs::read_to_string(&json_path)
@@ -640,5 +781,113 @@ fn export_single(
         eprintln!("Wrote {}", ld_path.display());
     }
 
+    if do_shp {
+        export_shapefile_points(input, downsample, subtiming)?;
+    }
+
+    Ok(())
+}
+
+fn export_shapefile_points(
+    input: &Path,
+    downsample: usize,
+    subtiming: Option<&SubtimingParams>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let graphics_path = input.with_extension("graphics.rkyv");
+    if !graphics_path.exists() {
+        return Err(format!(
+            "Missing graphics file for SHP export: {}",
+            graphics_path.display()
+        )
+        .into());
+    }
+
+    let (sample_rate, graphics_records) =
+        acr_recorder::export::rkyv_reader::read_graphics_rkyv(&graphics_path)?;
+    if graphics_records.is_empty() {
+        return Err("No graphics records in file".into());
+    }
+    let (physics_sample_rate, physics_records) = acr_recorder::export::rkyv_reader::read_rkyv(input)?;
+    if physics_records.is_empty() {
+        return Err("No physics records in file".into());
+    }
+
+    let shp_path = input.with_extension("points.shp");
+    let table_builder = TableWriterBuilder::new()
+        .add_numeric_field("idx".try_into()?, 12, 0)
+        .add_numeric_field("t_sec".try_into()?, 12, 3)
+        .add_numeric_field("lap".try_into()?, 8, 0)
+        .add_numeric_field("dist_m".try_into()?, 12, 3)
+        .add_numeric_field("speed_kmh".try_into()?, 12, 3)
+        .add_numeric_field("steer_ang".try_into()?, 12, 5);
+    let mut writer = Writer::from_path(&shp_path, table_builder)?;
+
+    let mut written = 0usize;
+    let mut sub_samples: Vec<ShpSample> = Vec::new();
+    for (i, gr) in graphics_records.iter().enumerate().step_by(downsample) {
+        let pt = Point::new(gr.car_coordinates_x as f64, gr.car_coordinates_z as f64);
+        let physics_idx =
+            ((i as f64 * physics_sample_rate as f64 / sample_rate as f64).round() as usize)
+                .min(physics_records.len() - 1);
+        let physics = &physics_records[physics_idx];
+        let t_sec = i as f64 / sample_rate as f64;
+        let speed = physics.speed_kmh as f64;
+        let steer = physics.steer_angle as f64;
+        if subtiming.is_some() {
+            sub_samples.push(ShpSample {
+                idx: i as u32,
+                t_sec,
+                lap: gr.completed_lap,
+                dist_m: gr.distance_traveled as f64,
+                x: gr.car_coordinates_x as f64,
+                z: gr.car_coordinates_z as f64,
+                speed_kmh: speed,
+                steer_angle: steer,
+            });
+        }
+        let mut rec = Record::default();
+        rec.insert("idx".to_string(), FieldValue::Numeric(Some(i as f64)));
+        rec.insert(
+            "t_sec".to_string(),
+            FieldValue::Numeric(Some(t_sec)),
+        );
+        rec.insert(
+            "lap".to_string(),
+            FieldValue::Numeric(Some(gr.completed_lap as f64)),
+        );
+        rec.insert(
+            "dist_m".to_string(),
+            FieldValue::Numeric(Some(gr.distance_traveled as f64)),
+        );
+        rec.insert(
+            "speed_kmh".to_string(),
+            FieldValue::Numeric(Some(speed)),
+        );
+        rec.insert(
+            "steer_ang".to_string(),
+            FieldValue::Numeric(Some(steer)),
+        );
+        writer.write_shape_and_record(&pt, &rec)?;
+        written += 1;
+    }
+
+    eprintln!(
+        "Wrote {} points to {} (downsample={} from {} graphics samples)",
+        written,
+        shp_path.display(),
+        downsample,
+        graphics_records.len()
+    );
+
+    if let Some(st) = subtiming {
+        let markers = compute_subtiming_markers(&sub_samples, st);
+        let sub_path = input.with_extension("subtiming.shp");
+        write_subtiming_shapefile(&sub_path, &markers)?;
+        eprintln!(
+            "Wrote {} subtiming marker(s) to {}",
+            markers.len(),
+            sub_path.display()
+        );
+    }
     Ok(())
 }

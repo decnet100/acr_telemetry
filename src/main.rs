@@ -17,6 +17,65 @@ use acr_recorder::{config, record::{GraphicsRecord, PhysicsRecord, StaticsRecord
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
+#[derive(serde::Serialize)]
+struct RingState {
+    version: u32,
+    prefix: String,
+    slot_count: usize,
+    current_slot: usize,
+    previous_slot: usize,
+    current_file: String,
+    previous_file: String,
+    updated_at_utc: String,
+}
+
+struct DistanceResetDetector {
+    min_prev_m: f32,
+    max_curr_m: f32,
+    cooldown: Duration,
+    last_distance: Option<f32>,
+    last_rotation_at: Option<std::time::Instant>,
+}
+
+fn statics_has_content(s: &acc_shared_memory_rs::maps::StaticsMap) -> bool {
+    !s.track.trim().is_empty()
+        || !s.car_model.trim().is_empty()
+        || !s.player_name.trim().is_empty()
+        || !s.player_surname.trim().is_empty()
+        || !s.player_nick.trim().is_empty()
+        || s.max_rpm > 0
+        || s.max_fuel > 0.0
+}
+
+impl DistanceResetDetector {
+    fn new(min_prev_m: f32, max_curr_m: f32, cooldown_secs: u64) -> Self {
+        Self {
+            min_prev_m,
+            max_curr_m,
+            cooldown: Duration::from_secs(cooldown_secs.max(1)),
+            last_distance: None,
+            last_rotation_at: None,
+        }
+    }
+
+    fn should_rotate(&mut self, current_distance: f32) -> bool {
+        let previous = self.last_distance.replace(current_distance);
+        let Some(previous_distance) = previous else {
+            return false;
+        };
+        if previous_distance < self.min_prev_m || current_distance > self.max_curr_m {
+            return false;
+        }
+        if let Some(last_rotation_at) = self.last_rotation_at {
+            if last_rotation_at.elapsed() < self.cooldown {
+                return false;
+            }
+        }
+        self.last_rotation_at = Some(std::time::Instant::now());
+        true
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     ctrlc_handler();
 
@@ -36,7 +95,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if record_graphics {
         eprintln!("GraphicsMap recording enabled (~60 Hz, for Grafana/distance_traveled)");
     }
-    let output_path = output_path(&cfg)?;
+    let ring_mode = cfg.recorder.ring_mode;
+    let slot_count = cfg.recorder.ring_slots.max(2);
+    let ring_prefix = cfg.recorder.ring_prefix.trim();
+    let ring_prefix = if ring_prefix.is_empty() { "acc_ring" } else { ring_prefix };
+    let output_path = if ring_mode {
+        ring_slot_path(&cfg, ring_prefix, 0)?
+    } else {
+        output_path(&cfg)?
+    };
+    let ring_state_path = ring_state_path(&cfg, ring_prefix);
     let notes_dir = config::resolve_notes_dir(&cfg.recorder);
     let mut stop_path = config::resolve_stop_file_path(&cfg.recorder);
     if stop_path.is_relative() {
@@ -51,15 +119,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Notes are no longer handled by recorder; acr_export reads acr_notes when exporting
     let start_time = chrono::Utc::now();
     eprintln!("Recording to: {}", output_path.display());
+    if ring_mode {
+        eprintln!("Ring mode enabled: {} slots, prefix '{}'", slot_count, ring_prefix);
+    }
     eprintln!("Ctrl+C to stop, or run acr_stop.bat / create {} to stop from game.", stop_path.display());
 
     let mut acc = ACCSharedMemory::new()?;
     
     // Capture statics once at start
-    let statics = acc.read_shared_memory()?
+    let mut statics = acc.read_shared_memory()?
         .map(|data| StaticsRecord::from_statics(&data.statics));
     
     let mut recorder = Recorder::new(&output_path, statics.as_ref(), record_graphics)?;
+    let mut current_output_path = output_path.clone();
+    let mut current_slot: usize = 0;
+    let mut previous_slot: usize = slot_count.saturating_sub(1);
+    if ring_mode {
+        write_ring_state(
+            &ring_state_path,
+            ring_prefix,
+            slot_count,
+            current_slot,
+            previous_slot,
+            &slot_file_name(ring_prefix, current_slot),
+            &slot_file_name(ring_prefix, previous_slot),
+        );
+    }
+    let mut reset_detector = DistanceResetDetector::new(
+        cfg.recorder.distance_reset_min_prev_m,
+        cfg.recorder.distance_reset_max_curr_m,
+        cfg.recorder.distance_reset_cooldown_secs,
+    );
 
     let poll_interval = acr_recorder::recorder::poll_interval();
     let idle_sleep = Duration::from_millis(16); // when no data (e.g. menu), sleep longer to reduce CPU/input lag
@@ -68,10 +158,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut last_print = std::time::Instant::now();
     let mut last_elapsed_write = std::time::Instant::now();
     let mut last_graphics_capture = std::time::Instant::now();
+    let mut last_statics_debug = std::time::Instant::now();
     let graphics_interval = Duration::from_millis(16); // ~60 Hz
 
     while RUNNING.load(Ordering::Relaxed) && !stop_requested(&stop_path) {
         if let Some(data) = acc.read_shared_memory()? {
+            let statics_missing = statics.is_none();
+            let track_missing = statics
+                .as_ref()
+                .map_or(true, |s| s.track.trim().is_empty());
+            let incoming_has_content = statics_has_content(&data.statics);
+            let incoming_has_track = !data.statics.track.trim().is_empty();
+            if (statics_missing && incoming_has_content) || (track_missing && incoming_has_track) {
+                statics = Some(StaticsRecord::from_statics(&data.statics));
+                if let Err(e) = acr_recorder::format_meta::write_format_metadata(
+                    &current_output_path,
+                    statics.as_ref(),
+                ) {
+                    eprintln!("Could not refresh metadata statics: {}", e);
+                } else {
+                    let track = data.statics.track.trim();
+                    if track.is_empty() {
+                        eprintln!("Captured statics without track yet (car_model={})", data.statics.car_model);
+                    } else {
+                        eprintln!("Resolved track from statics: {}", track);
+                    }
+                }
+            } else if track_missing && last_statics_debug.elapsed() >= Duration::from_secs(10) {
+                eprintln!(
+                    "Waiting for non-empty statics.track (raw='{}', car_model='{}')",
+                    data.statics.track,
+                    data.statics.car_model
+                );
+                last_statics_debug = std::time::Instant::now();
+            }
             consecutive_none = 0;
             let record = PhysicsRecord::from_physics(&data.physics);
             recorder.record(record)?;
@@ -81,6 +201,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let graphics_record = GraphicsRecord::from_graphics(&data.graphics);
                 recorder.record_graphics(graphics_record)?;
                 last_graphics_capture = std::time::Instant::now();
+            }
+
+            if ring_mode && record_graphics && cfg.recorder.rotate_on_distance_reset {
+                let distance = data.graphics.distance_traveled;
+                if reset_detector.should_rotate(distance) {
+                    previous_slot = current_slot;
+                    current_slot = (current_slot + 1) % slot_count;
+                    let next_path = ring_slot_path(&cfg, ring_prefix, current_slot)?;
+                    recorder = Recorder::new(&next_path, statics.as_ref(), record_graphics)?;
+                    current_output_path = next_path;
+                    write_ring_state(
+                        &ring_state_path,
+                        ring_prefix,
+                        slot_count,
+                        current_slot,
+                        previous_slot,
+                        &slot_file_name(ring_prefix, current_slot),
+                        &slot_file_name(ring_prefix, previous_slot),
+                    );
+                    eprintln!(
+                        "Ring rotate: slot {} -> {} (distance reset: {:.1}m)",
+                        previous_slot,
+                        current_slot,
+                        distance
+                    );
+                }
             }
 
             // Write elapsed secs for batch scripts (e.g. acr_note_good.bat) about once per second
@@ -139,6 +285,45 @@ fn output_path(cfg: &config::Config) -> Result<PathBuf, ACCError> {
     let dir = config::resolve_path(&cfg.recorder.raw_output_dir);
     std::fs::create_dir_all(&dir).map_err(|e| ACCError::InvalidData(e.to_string()))?;
     Ok(dir.join(name))
+}
+
+fn ring_state_path(cfg: &config::Config, ring_prefix: &str) -> PathBuf {
+    let dir = config::resolve_path(&cfg.recorder.raw_output_dir);
+    dir.join(format!("{}.state.json", ring_prefix))
+}
+
+fn slot_file_name(ring_prefix: &str, slot: usize) -> String {
+    format!("{}_slot_{:02}.rkyv", ring_prefix, slot)
+}
+
+fn ring_slot_path(cfg: &config::Config, ring_prefix: &str, slot: usize) -> Result<PathBuf, ACCError> {
+    let dir = config::resolve_path(&cfg.recorder.raw_output_dir);
+    std::fs::create_dir_all(&dir).map_err(|e| ACCError::InvalidData(e.to_string()))?;
+    Ok(dir.join(slot_file_name(ring_prefix, slot)))
+}
+
+fn write_ring_state(
+    path: &Path,
+    ring_prefix: &str,
+    slot_count: usize,
+    current_slot: usize,
+    previous_slot: usize,
+    current_file: &str,
+    previous_file: &str,
+) {
+    let state = RingState {
+        version: 1,
+        prefix: ring_prefix.to_string(),
+        slot_count,
+        current_slot,
+        previous_slot,
+        current_file: current_file.to_string(),
+        previous_file: previous_file.to_string(),
+        updated_at_utc: chrono::Utc::now().to_rfc3339(),
+    };
+    if let Ok(json) = serde_json::to_string_pretty(&state) {
+        let _ = std::fs::write(path, json);
+    }
 }
 
 fn stop_requested(stop_path: &Path) -> bool {

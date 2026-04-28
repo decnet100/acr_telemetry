@@ -7,3 +7,5 @@ pub mod format_meta;
 pub mod notes;
 pub mod record;
 pub mod recorder;
+pub mod rtss_osd;
+pub mod timing_db;

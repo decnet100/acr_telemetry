@@ -47,6 +47,14 @@ fn is_recorder_active(notes_dir: &PathBuf) -> bool {
     }
 }
 
+fn read_detected_track_message(notes_dir: &PathBuf) -> Option<String> {
+    let path = notes_dir.join("acr_detected_track.txt");
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
 fn wheel_values<F>(physics: &PhysicsMap, get: F, temp_unit: &str, is_temp: bool) -> [(&'static str, f32); 4]
 where
     F: Fn(&PhysicsMap) -> &Wheels,
@@ -103,6 +111,7 @@ fn build_payload(
     physics: &acc_shared_memory_rs::maps::PhysicsMap,
     temp_unit: &str,
     recorder_active: bool,
+    detected_track_message: Option<&str>,
 ) -> Value {
     let k = |v: f32| k_to_unit(v, temp_unit);
     let unit = normalize_temp_unit(temp_unit);
@@ -111,6 +120,9 @@ fn build_payload(
     m.insert("packet_id".into(), i(physics.packet_id));
     m.insert("temperature_unit".into(), Value::String(unit));
     m.insert("recorder_active".into(), b(recorder_active));
+    if let Some(msg) = detected_track_message {
+        m.insert("detected_track_message".into(), Value::String(msg.to_string()));
+    }
 
     // Driver inputs
     m.insert("gas".into(), f(physics.gas));
@@ -554,6 +566,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut recorder_active_cached = false;
     let mut last_recorder_check = std::time::Instant::now();
     let recorder_check_interval = Duration::from_secs(2); // Check every 2 seconds instead of every iteration
+    let mut detected_track_msg_cached: Option<String> = None;
 
     while RUNNING.load(Ordering::Relaxed) {
         match acc.read_shared_memory() {
@@ -561,10 +574,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Only check recorder status every 2 seconds to minimize filesystem overhead
                 if last_recorder_check.elapsed() >= recorder_check_interval {
                     recorder_active_cached = is_recorder_active(&notes_dir);
+                    detected_track_msg_cached = read_detected_track_message(&notes_dir);
                     last_recorder_check = std::time::Instant::now();
                 }
                 
-                let mut payload = build_payload(&data.physics, &temp_unit, recorder_active_cached);
+                let mut payload = build_payload(
+                    &data.physics,
+                    &temp_unit,
+                    recorder_active_cached,
+                    detected_track_msg_cached.as_deref(),
+                );
 
                 // Update min/max for slot fields and add to payload
                 if let Value::Object(ref mut m) = payload {

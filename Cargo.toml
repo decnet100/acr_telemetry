@@ -23,6 +23,14 @@ path = "src/bin/acr_telemetry_bridge.rs"
 name = "acr_analysis_export"
 path = "src/bin/acr_analysis_export.rs"
 
+[[bin]]
+name = "acr_track_match"
+path = "src/bin/acr_track_match.rs"
+
+[[bin]]
+name = "acr_rtss_osd"
+path = "src/bin/acr_rtss_osd.rs"
+
 [dependencies]
 acc_shared_memory_rs = { path = "vendor/acc_shared_memory_rs" }
 rkyv = { version = "0.7", features = ["std"] }
@@ -34,6 +42,14 @@ chrono = "0.4"
 toml = "0.8"
 dirs = "5.0"
 tiny_http = "0.12"
+shapefile = "0.8.0"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["processthreadsapi"] }
+winapi = { version = "0.3", features = [
+    "processthreadsapi",
+    "handleapi",
+    "memoryapi",
+    "synchapi",
+    "winnt",
+    "errhandlingapi",
+] }
