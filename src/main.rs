@@ -215,7 +215,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // appending zeroed physics for however long it took the driver to
             // notice and hit stop. Skip the sample instead, same as a `None`
             // read, so only genuine driving ends up in the export.
-            if !data.graphics.status.is_active() {
+            if !acr_recorder::acc_wait::frame_is_live(&data) {
                 consecutive_none = consecutive_none.saturating_add(1);
                 let sleep = if consecutive_none >= IDLE_THRESHOLD {
                     idle_sleep

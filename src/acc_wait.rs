@@ -50,3 +50,10 @@ pub fn open_or_wait(
         }
     }
 }
+
+/// Whether a frame holds live driving data. ACC reports this in the graphics status (Live or Replay). Assetto Corsa
+/// Rally never fills that status (it stays Off for the whole session), so there the physics decides: the page goes
+/// flat at zero once the stage is left (menu, results), and a live car always has fuel or revs.
+pub fn frame_is_live(data: &acc_shared_memory_rs::ACCMap) -> bool {
+    data.graphics.status.is_active() || data.physics.fuel > 0.0 || data.physics.rpm > 0
+}
