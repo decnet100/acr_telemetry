@@ -55,5 +55,40 @@ pub fn open_or_wait(
 /// Rally never fills that status (it stays Off for the whole session), so there the physics decides: the page goes
 /// flat at zero once the stage is left (menu, results), and a live car always has fuel or revs.
 pub fn frame_is_live(data: &acc_shared_memory_rs::ACCMap) -> bool {
-    data.graphics.status.is_active() || data.physics.fuel > 0.0 || data.physics.rpm > 0
+    is_live_values(data.graphics.status, data.physics.fuel, data.physics.rpm)
+}
+
+/// The decision behind [`frame_is_live`], on the raw fields so it can be unit-tested.
+fn is_live_values(status: acc_shared_memory_rs::enums::AccStatus, fuel: f32, rpm: i32) -> bool {
+    status.is_active() || fuel > 0.0 || rpm > 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acc_shared_memory_rs::enums::AccStatus;
+
+    #[test]
+    fn live_status_counts_as_live_regardless_of_physics() {
+        assert!(is_live_values(AccStatus::Live, 0.0, 0));
+        assert!(is_live_values(AccStatus::Replay, 0.0, 0));
+    }
+
+    #[test]
+    fn off_status_with_fuel_or_revs_is_live() {
+        // Assetto Corsa Rally: status stays Off, physics is the only signal.
+        assert!(is_live_values(AccStatus::Off, 42.0, 0));
+        assert!(is_live_values(AccStatus::Off, 0.0, 3000));
+    }
+
+    #[test]
+    fn flat_physics_with_off_status_is_not_live() {
+        // Menu / results screens: physics goes flat at zero.
+        assert!(!is_live_values(AccStatus::Off, 0.0, 0));
+    }
+
+    #[test]
+    fn pause_status_with_flat_physics_is_not_live() {
+        assert!(!is_live_values(AccStatus::Pause, 0.0, 0));
+    }
 }
